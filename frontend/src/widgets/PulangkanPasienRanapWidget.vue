@@ -226,10 +226,18 @@ const caraKeluarOptions = [
 ]
 
 const patientOptions = computed(() => {
-  return patientList.value.map((p) => ({
-    value: p.noreg,
-    label: `${p.pasien?.nama || '-'} (RM: ${p.norm} | No: ${p.nosrtmeninggal}) — [${p.tte_status === 'SIGNED_BSRE' ? 'SUDAH TTE BSrE' : 'BELUM TTE'}]`
-  }))
+  return patientList.value.map((p) => {
+    let statusLabel = 'BELUM DI-TTE'
+    if (p.tte_status === 'SIGNED_BSRE') {
+      statusLabel = 'SUDAH TTE BSrE'
+    } else if (p.document_id) {
+      statusLabel = 'ADA DI INBOX'
+    }
+    return {
+      value: p.noreg,
+      label: `${p.pasien?.nama || '-'} (RM: ${p.norm} | No: ${p.nosrtmeninggal}) — [${statusLabel}]`
+    }
+  })
 })
 
 const statusCardClass = computed(() => {

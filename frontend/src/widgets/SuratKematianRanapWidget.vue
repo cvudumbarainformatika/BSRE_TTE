@@ -59,11 +59,18 @@
               ✓ TERVERIFIKASI TTE BSrE
             </Badge>
             <Badge
-              v-else
+              v-else-if="activeDocumentId"
               variant="outline"
               class="bg-amber-500/10 text-amber-500 border border-amber-500/30 px-3 py-1 text-xs font-bold"
             >
               ⏳ Menunggu TTE di Inbox
+            </Badge>
+            <Badge
+              v-else
+              variant="outline"
+              class="bg-muted text-muted-foreground border-border px-3 py-1 text-xs font-bold"
+            >
+              📝 Draft Baru (Belum Masuk Inbox)
             </Badge>
 
             <!-- Tombol 1: Kirim ke Inbox -->
@@ -436,10 +443,18 @@ const feedbackError = ref(false)
 const lastResult = ref(null)
 
 const mysqlRecordsOptions = computed(() => {
-  return mysqlRecords.value.map((rec) => ({
-    value: rec.noreg,
-    label: `${rec.pasien?.nama || '-'} (RM: ${rec.norm} | No: ${rec.nosrtmeninggal}) — [${rec.tte_status === 'SIGNED_BSRE' ? 'SIGNED BSrE' : 'MENUNGGU TTE'}]`
-  }))
+  return mysqlRecords.value.map((rec) => {
+    let statusLabel = 'BELUM DI-TTE'
+    if (rec.tte_status === 'SIGNED_BSRE') {
+      statusLabel = 'SUDAH TTE BSrE'
+    } else if (rec.document_id) {
+      statusLabel = 'ADA DI INBOX'
+    }
+    return {
+      value: rec.noreg,
+      label: `${rec.pasien?.nama || '-'} (RM: ${rec.norm} | No: ${rec.nosrtmeninggal}) — [${statusLabel}]`
+    }
+  })
 })
 
 const qrVerificationUrl = computed(() => {
@@ -493,7 +508,7 @@ const onSelectMysqlRecord = (noregVal) => {
 const loadFromMysql = async (showNotice = false) => {
   isLoadingMysql.value = true
   try {
-    const res = await documentApi.getMysqlSuratKematianList({ limit: 20, auto_sync: true })
+    const res = await documentApi.getMysqlSuratKematianList({ limit: 20, auto_sync: false })
     mysqlRecords.value = res.data.data || []
 
     // Prioritaskan data BUDI UTOMO (472.12/2728/425.102.8/KEM/X/2026) agar persis SS1
