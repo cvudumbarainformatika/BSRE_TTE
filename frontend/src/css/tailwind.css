@@ -133,6 +133,23 @@
   background: hsl(var(--primary));
 }
 
+/* GPU Acceleration, Scroll Observer & Rendering Optimizations */
+.will-change-scroll {
+  will-change: scroll-position;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 @layer utilities {
   .no-spinner::-webkit-inner-spin-button,
   .no-spinner::-webkit-outer-spin-button {

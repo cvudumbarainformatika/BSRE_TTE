@@ -38,6 +38,7 @@ services:
       - .env
     volumes:
       - ./backend/storage:/app/storage
+      - ./backend/app:/app/app
     depends_on:
       db:
         condition: service_healthy

@@ -1,4 +1,4 @@
-from sqlmodel import Session, select, text
+from sqlmodel import Session, select, text, func
 from app.Models.Document import Document
 from typing import Optional, List
 from datetime import datetime
@@ -52,8 +52,9 @@ class DocumentRepository:
                 (text("LOWER(description) LIKE :q"))
             ).params(q=search_pattern)
 
-        # Count total
-        total = len(self.db.exec(query).all())
+        # Count total optimal via SQL func.count (tanpa menarik seluruh baris ke memori)
+        count_query = select(func.count()).select_from(query.subquery())
+        total = self.db.exec(count_query).one() or 0
 
         # Order by uploaded_at DESC and paginate
         query = query.order_by(Document.uploaded_at.desc()).offset(offset).limit(limit)

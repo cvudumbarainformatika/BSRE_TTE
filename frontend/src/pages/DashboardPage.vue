@@ -111,6 +111,7 @@
       <!-- TAB 1: SURAT KEMATIAN RANAP (PRIORITAS TTE) -->
       <template #kematian_ranap>
         <SuratKematianRanapWidget
+          v-if="visitedTabs.has('kematian_ranap')"
           @document-created="onDocumentCreated"
           @view-generated="openViewer"
         />
@@ -119,6 +120,7 @@
       <!-- TAB 2: SIGNATURE INBOX (BATCH SIGN) -->
       <template #inbox>
         <PendingTteInbox
+          v-if="visitedTabs.has('inbox')"
           ref="inboxRef"
           @preview-doc="openViewer"
           @batch-signed="onBatchSigned"
@@ -128,6 +130,7 @@
       <!-- TAB 3: LEMBAR KONSULTASI SIMRS -->
       <template #simrs>
         <SimrsDocWidget
+          v-if="visitedTabs.has('simrs')"
           @document-created="onDocumentCreated"
           @view-generated="openViewer"
         />
@@ -136,6 +139,7 @@
       <!-- TAB 4: DAFTAR SEMUA DOKUMEN & RIWAYAT TTE -->
       <template #list>
         <DocumentList
+          v-if="visitedTabs.has('list')"
           ref="docListRef"
           :user-role="currentUser?.role || 'dokter'"
           @view-document="openViewer"
@@ -144,7 +148,7 @@
 
       <!-- TAB 5: PENCARIAN VEKTOR (PGVECTOR AI) -->
       <template #vector>
-        <Card class="glass-panel border-border shadow-sm">
+        <Card v-if="visitedTabs.has('vector')" class="glass-panel border-border shadow-sm">
           <CardHeader>
             <CardTitle class="text-base font-bold text-foreground">
               Pencarian Semantik Rekam Medis (PostgreSQL pgvector)
@@ -269,11 +273,18 @@ const emit = defineEmits(['refresh-notifications', 'switch-tab'])
 
 const isPageLoading = ref(false)
 const currentTab = ref(props.activeNav || 'kematian_ranap')
+const visitedTabs = ref(new Set([props.activeNav || 'kematian_ranap']))
 const inboxRef = ref(null)
 const docListRef = ref(null)
 const selectedDoc = ref(null)
 const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
+
+const markTabVisited = (tabName) => {
+  if (tabName && !visitedTabs.value.has(tabName)) {
+    visitedTabs.value.add(tabName)
+  }
+}
 
 const tabItems = computed(() => [
   { value: 'kematian_ranap', label: '🏥 Surat Kematian Ranap (Prioritas TTE)' },
@@ -302,6 +313,14 @@ watch(
       currentTab.value = val
     }
   }
+)
+
+watch(
+  () => currentTab.value,
+  (val) => {
+    markTabVisited(val)
+  },
+  { immediate: true }
 )
 
 const selectTab = (tabVal) => {

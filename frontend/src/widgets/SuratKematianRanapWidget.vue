@@ -161,8 +161,9 @@
     <!-- ===================================================================== -->
     <!-- TAMPILAN KERTAS 100% IDENTIK SuratKematianPage.vue (SS1 & SS3)        -->
     <!-- Pengecualian Sesuai Prompt: Meniru Dokumen Fisik Asli SIMRS            -->
+    <!-- Dioptimalkan dengan cv-auto (Content Visibility Auto) & GPU Acceleration -->
     <!-- ===================================================================== -->
-    <Card class="border-border shadow-md overflow-hidden max-w-4xl mx-auto bg-card">
+    <Card class="border-border shadow-md overflow-hidden max-w-4xl mx-auto bg-card cv-auto gpu-accelerated">
       <div class="px-5 py-3 bg-primary text-primary-foreground flex items-center justify-between">
         <div class="font-bold text-sm tracking-wide">SURAT KEMATIAN</div>
         <div class="text-xs opacity-90 font-mono">
@@ -171,7 +172,7 @@
       </div>
 
       <!-- Area Dokumen Cetak (#pdfDoc) Persis SS1 -->
-      <CardContent class="p-8 sm:p-12 bg-white text-black font-sans text-[13px] leading-relaxed">
+      <CardContent class="p-8 sm:p-12 bg-white text-black font-sans text-[13px] leading-relaxed cv-auto">
         <!-- 1. KOP SURAT (Logo Perisai Hitam Putih logo-kota-grey.png di kiri + Teks Tengah) -->
         <div class="flex items-center justify-center gap-6 pb-3">
           <img

@@ -249,16 +249,21 @@ class SimrsMysqlReadService:
 
             if existing:
                 try:
+                    # Update metadata dan target signer jika berubah
                     existing.target_signer_name = nama_dokter
                     existing.metadata_json = json.dumps(item)
-                    if existing.tte_status == "SIGNED_BSRE":
-                        existing.tte_signer_name = nama_dokter
-                        verify_url = bsre_service.build_simrs_legalitas_url(metadata_payload=item, doc_id=existing.id)
-                        pdf_service.generate_surat_kematian_pdf(item, existing.storage_path, is_signed=True, verify_url=verify_url)
-                    else:
-                        pdf_service.generate_surat_kematian_pdf(item, existing.storage_path, is_signed=False)
-                    existing.file_size = os.path.getsize(existing.storage_path)
-                    existing.pdf_hash = bsre_service.calculate_file_hash(existing.storage_path)
+
+                    # Hanya generate PDF jika file fisik belum ada di disk (OPTIMASI KINERJA KILAT)
+                    if not os.path.exists(existing.storage_path):
+                        if existing.tte_status == "SIGNED_BSRE":
+                            existing.tte_signer_name = nama_dokter
+                            verify_url = bsre_service.build_simrs_legalitas_url(metadata_payload=item, doc_id=existing.id)
+                            pdf_service.generate_surat_kematian_pdf(item, existing.storage_path, is_signed=True, verify_url=verify_url)
+                        else:
+                            pdf_service.generate_surat_kematian_pdf(item, existing.storage_path, is_signed=False)
+                        existing.file_size = os.path.getsize(existing.storage_path)
+                        existing.pdf_hash = bsre_service.calculate_file_hash(existing.storage_path)
+                    
                     db.add(existing)
                 except Exception as e:
                     logger.warning(f"Gagal update PDF doc {existing.id}: {e}")

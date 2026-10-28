@@ -195,8 +195,8 @@
         </div>
       </header>
 
-      <!-- DYNAMIC CONTENT CONTAINER (Background kontras slate-200) -->
-      <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
+      <!-- DYNAMIC CONTENT CONTAINER (Background kontras slate-200 dengan Akselerasi Scroll & Observer) -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-background will-change-scroll">
         <router-view
           :current-user="activeUser"
           :pending-count="pendingCount"

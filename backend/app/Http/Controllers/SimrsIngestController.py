@@ -50,15 +50,23 @@ def list_surat_kematian_from_mysql(
             raw_records = simrs_mysql_service.fetch_surat_kematian_ranap(limit=limit, search=search)
             sync_info = {"newly_synced_count": 0, "already_existing_count": len(raw_records)}
 
-        # Gabungkan dengan status TTE terkini dari PostgreSQL
+        # Gabungkan dengan status TTE terkini dari PostgreSQL (1 BATCH QUERY SUPER CEPAT, ZERO N+1 QUERY)
+        kunj_ids = [rec["kunjungan_id"] for rec in raw_records]
+        pg_docs = db.exec(
+            select(Document)
+            .where(Document.document_type == "surat_kematian", Document.kunjungan_id.in_(kunj_ids))
+            .order_by(Document.uploaded_at.desc())
+        ).all()
+
+        doc_map = {}
+        for d in pg_docs:
+            if d.kunjungan_id not in doc_map:
+                doc_map[d.kunjungan_id] = d
+
         enriched = []
         for rec in raw_records:
             kunj_id = rec["kunjungan_id"]
-            pg_doc = db.exec(
-                select(Document)
-                .where(Document.document_type == "surat_kematian", Document.kunjungan_id == kunj_id)
-                .order_by(Document.uploaded_at.desc())
-            ).first()
+            pg_doc = doc_map.get(kunj_id)
 
             rec["document_id"] = pg_doc.id if pg_doc else None
             rec["tte_status"] = pg_doc.tte_status if pg_doc else "UNSIGNED"
