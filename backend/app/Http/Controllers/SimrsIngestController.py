@@ -39,7 +39,7 @@ def _extract_numeric_id(raw_str: str, fallback: int = 50001) -> int:
 def list_surat_kematian_from_mysql(
     limit: int = 20,
     search: Optional[str] = None,
-    auto_sync: bool = True,
+    auto_sync: bool = False,
     db: Session = Depends(get_session)
 ):
     """

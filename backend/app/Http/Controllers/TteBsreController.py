@@ -27,7 +27,7 @@ router = APIRouter(prefix="/tte", tags=["TTE BSRE"])
 @router.get("/pending-my-documents")
 def get_pending_my_documents(
     document_type: Optional[str] = None,
-    auto_sync_mysql: bool = True,
+    auto_sync_mysql: bool = False,
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
