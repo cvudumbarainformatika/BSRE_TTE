@@ -243,7 +243,7 @@ const roles = [
 const navMenuItems = [
   { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'dokumen', label: 'Dokumen', icon: FileText },
-  { id: 'inbox', label: 'Signature Inbox (Batch)', icon: Inbox },
+  { id: 'inbox', label: 'Inbox TTE Dokter', icon: Inbox },
   { id: 'list', label: 'Arsip & Verifikasi Dokumen', icon: Archive },
   { id: 'vector', label: 'Pencarian Semantik AI', icon: Sparkles }
 ]

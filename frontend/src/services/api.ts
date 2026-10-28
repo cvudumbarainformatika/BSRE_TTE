@@ -34,6 +34,9 @@ export const documentApi = {
   finalizeSuratKematianRanap: (payload: any) =>
     api.post("/simrs/ranap/surat-kematian/finalize", payload),
 
+  pulangkanPasienRanap: (payload: any) =>
+    api.post("/simrs/ranap/pulangkan-pasien", payload),
+
   getMysqlSuratKematianList: (params?: { limit?: number; search?: string; auto_sync?: boolean }) =>
     api.get("/simrs/ranap/surat-kematian/mysql-list", { params }),
 

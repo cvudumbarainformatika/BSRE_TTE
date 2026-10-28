@@ -216,8 +216,11 @@ class BsreTteService:
         """
         effective_nik = signer_nik or settings.BSRE_DEV_NIK or signer_nip
 
-        if not passphrase or passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
-            raise ValueError("Passphrase BSrE tidak valid! Silakan periksa kembali Passphrase BSrE Anda.")
+        if not passphrase or len(passphrase.strip()) < 3:
+            raise ValueError("Passphrase BSrE tidak valid! Harap masukkan Passphrase BSrE Anda.")
+
+        if not self.mock_mode and passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+            raise ValueError("Passphrase BSrE salah! Silakan periksa kembali Passphrase BSrE Anda.")
 
         logger.info(f"Initiating BSRE TTE Signing for doc {doc_id} by {signer_name}")
         verify_url = self.build_simrs_legalitas_url(metadata_payload=metadata_payload, doc_id=doc_id)

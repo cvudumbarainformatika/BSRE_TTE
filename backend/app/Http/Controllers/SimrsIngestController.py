@@ -19,7 +19,11 @@ from app.Services.SimrsMysqlReadService import simrs_mysql_service
 from app.Services.VectorSearchService import vector_service
 from app.Services.AuditService import audit_service
 from app.Http.Middleware.AuthMiddleware import get_current_user
-from app.Http.Requests.DocumentRequests import SimrsAutoIngestRequest, SuratKematianRanapRequest
+from app.Http.Requests.DocumentRequests import (
+    SimrsAutoIngestRequest,
+    SuratKematianRanapRequest,
+    PulangkanPasienRanapRequest
+)
 
 router = APIRouter(prefix="/simrs", tags=["SIMRS Automated Ingest & MySQL Read-Only Sync"])
 
@@ -172,10 +176,15 @@ def finalize_surat_kematian_ranap(
     signer_name = req.dpjp.get("nama") or "dr. RIA NURMALA SETYANINGRUM"
 
     if req.sign_now:
-        if not req.passphrase or req.passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+        if not req.passphrase or len(req.passphrase.strip()) < 3:
             raise HTTPException(
                 status_code=400,
-                detail="Passphrase BSrE salah! Silakan masukkan Passphrase BSrE yang benar."
+                detail="Passphrase BSrE tidak boleh kosong! Harap masukkan Passphrase BSrE Anda."
+            )
+        if not settings.BSRE_MOCK_MODE and req.passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+            raise HTTPException(
+                status_code=400,
+                detail="Passphrase BSrE salah! Silakan masukkan Passphrase BSrE yang terdaftar."
             )
 
     doc_dir = os.path.join(settings.BASE_STORAGE_PATH, "documents", "ranap_kematian", str(kunjungan_id))
@@ -343,5 +352,175 @@ def finalize_surat_kematian_ranap(
         "document_id": doc.id,
         "preview_url": f"/api/v1/document/{doc.id}/view",
         "download_url": f"/api/v1/document/{doc.id}/download",
+        "data": doc
+    }
+
+
+@router.post("/ranap/pulangkan-pasien")
+def pulangkan_pasien_ranap(
+    req: PulangkanPasienRanapRequest,
+    request: Request,
+    db: Session = Depends(get_session)
+):
+    """
+    Alur Pulangkan Pasien Rawat Inap (Discharge):
+    - Jika pasien pulang dalam keadaan MENINGGAL (carakeluar C003 atau status Meninggal):
+      1. Cek apakah dokumen Surat Keterangan Kematian pasien ini sudah di-TTE di menu dokumen.
+      2. Jika SUDAH DI-TTE (SIGNED_BSRE): Tidak perlu dikirim ke Inbox lagi.
+      3. Jika BELUM DI-TTE (atau belum dibuat): Otomatis buat draft dan kirimkan HANYA ke Inbox TTE Dokter DPJP (status UNSIGNED / pending).
+    - Jika pasien pulang BUKAN dalam keadaan meninggal: Tidak ada pengiriman dokumen kematian ke Inbox.
+    """
+    kunjungan_id = _extract_numeric_id(req.noreg, 50999)
+    pasien_id = _extract_numeric_id(req.norm, 280999)
+
+    is_meninggal = (
+        (req.carakeluar and req.carakeluar.upper() == "C003") or
+        (req.keadaan_keluar and "MENINGGAL" in req.keadaan_keluar.upper())
+    )
+
+    if not is_meninggal:
+        return {
+            "success": True,
+            "status": "NOT_DECEASED",
+            "message": f"Pasien {req.nama_pasien or req.norm} dipulangkan dengan kondisi {req.keadaan_keluar or 'Biasa'}. Tidak ada dokumen kematian yang dikirim ke Inbox.",
+            "is_inbox_sent": False
+        }
+
+    # Cek apakah sudah ada dokumen Surat Kematian untuk kunjungan ini
+    existing_doc = db.exec(
+        select(Document).where(
+            Document.document_type == "surat_kematian",
+            Document.kunjungan_id == kunjungan_id
+        ).order_by(Document.uploaded_at.desc())
+    ).first()
+
+    signer_name = req.dpjp_nama or "dr. RIA NURMALA SETYANINGRUM"
+    signer_nip = req.dpjp_nip or "198201262009032003"
+    signer_nik = settings.BSRE_DEV_NIK
+
+    if existing_doc and existing_doc.tte_status == "SIGNED_BSRE":
+        # SUDAH DI-TTE SAH BSRE SEBELUMNYA DI MENU DOKUMEN!
+        return {
+            "success": True,
+            "status": "ALREADY_SIGNED",
+            "message": f"Pasien {req.nama_pasien or req.norm} dipulangkan dalam kondisi meninggal. Dokumen Surat Kematian ({existing_doc.title}) SUDAH ditandatangani sah dengan TTE BSrE oleh {existing_doc.tte_signer_name or signer_name}, sehingga TIDAK PERLU dikirim ke Inbox lagi.",
+            "document_id": existing_doc.id,
+            "tte_status": "SIGNED_BSRE",
+            "is_inbox_sent": False,
+            "data": existing_doc
+        }
+
+    # JIKA BELUM DI-TTE DI MENU DOKUMEN:
+    # Buat/Perbarui dokumen Surat Kematian dan kirimkan HANYA ke Inbox TTE Dokter DPJP!
+    doc_dir = os.path.join(settings.BASE_STORAGE_PATH, "documents", "ranap_kematian", str(kunjungan_id))
+    os.makedirs(doc_dir, exist_ok=True)
+    filename = f"SURAT_KEMATIAN_RANAP_{kunjungan_id}_{pasien_id}_{uuid.uuid4().hex[:6]}.pdf"
+    file_path = os.path.join(doc_dir, filename)
+
+    nama_pasien = req.nama_pasien or "Pasien Ranap"
+    nomor_surat = req.nosrtmeninggal or f"472.12/{str(kunjungan_id)[-4:]}/425.102.8/KEM/X/2026"
+
+    content_payload = {
+        "kunjungan_id": kunjungan_id,
+        "noreg": req.noreg,
+        "norm": req.norm,
+        "judul": "SURAT KETERANGAN KEMATIAN",
+        "nosrtmeninggal": nomor_surat,
+        "nomor_surat": nomor_surat,
+        "tgl_meninggal": req.tglkeluar or datetime.now().strftime("%d %B %Y"),
+        "jamMeninggal": req.jamMeninggal or "08:47",
+        "jam_meninggal": req.jamMeninggal or "08:47",
+        "diagnosa": req.diagnosa or "Cardiac arrest, unspecified",
+        "sebabkematian_ket": req.diagnosa or "Cardiac arrest, unspecified",
+        "pasien": {
+            "noreg": req.noreg,
+            "norm": req.norm,
+            "nama": nama_pasien,
+            "nama_panggil": nama_pasien,
+            "tglkeluar": req.tglkeluar or datetime.now().strftime("%d %B %Y"),
+            "carakeluar": req.carakeluar or "C003"
+        },
+        "dpjp": {
+            "nama": signer_name,
+            "nip": signer_nip,
+            "kdpegsimrs": req.dpjp_kdpegsimrs or "57"
+        },
+        "dokter": {
+            "nama": signer_name,
+            "nip": signer_nip,
+            "nik": signer_nik,
+            "golongan": "IV/a",
+            "ket_golongan": "Pembina",
+            "ket_jabatan": "Dokter Madya"
+        }
+    }
+
+    pdf_service.generate_surat_kematian_pdf(content_payload, file_path, is_signed=False)
+    file_size = os.path.getsize(file_path)
+    doc_hash = bsre_service.calculate_file_hash(file_path)
+    search_text = f"Surat Keterangan Kematian Ranap {nama_pasien} RM:{req.norm} Noreg:{req.noreg} Diagnosa:{content_payload['diagnosa']} Dokter:{signer_name}"
+    embed = vector_service.generate_embedding(search_text)
+
+    target_user = db.exec(
+        select(User).where((User.nik == signer_nik) | (User.nip == signer_nip) | (User.username == "dr_rizki"))
+    ).first()
+    uploader_id = target_user.id if target_user else 1
+
+    if existing_doc:
+        doc = existing_doc
+        doc.title = f"Surat Keterangan Kematian - {nama_pasien}"
+        doc.filename = filename
+        doc.storage_path = file_path
+        doc.original_path = file_path
+        doc.file_size = file_size
+        doc.target_signer_name = signer_name
+        doc.target_signer_nip = signer_nip
+        doc.metadata_json = json.dumps(content_payload)
+        doc.pdf_hash = doc_hash
+        doc.tte_status = "UNSIGNED"
+        doc.status = "pending"
+    else:
+        doc = Document(
+            kunjungan_id=kunjungan_id,
+            pasien_id=pasien_id,
+            document_type="surat_kematian",
+            title=f"Surat Keterangan Kematian - {nama_pasien}",
+            filename=filename,
+            storage_path=file_path,
+            original_path=file_path,
+            uploaded_by=uploader_id,
+            uploaded_at=datetime.now(timezone.utc),
+            status="pending",
+            description=f"Kepulangan Pasien Meninggal • No. Surat: {nomor_surat} • Dokter: {signer_name}",
+            file_size=file_size,
+            target_signer_nip=signer_nip,
+            target_signer_name=signer_name,
+            tte_status="UNSIGNED",
+            pdf_hash=doc_hash,
+            metadata_json=json.dumps(content_payload),
+            embedding=embed
+        )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    # Tambahkan notifikasi ke dokter DPJP
+    notif = UserNotification(
+        user_id=uploader_id,
+        title="Dokumen Surat Kematian Masuk ke Inbox TTE",
+        message=f"Pasien {nama_pasien} (RM: {req.norm}) telah dipulangkan dalam kondisi meninggal. Surat Kematian otomatis masuk ke Inbox TTE Anda untuk ditandatangani.",
+        document_id=doc.id,
+        is_read=False
+    )
+    db.add(notif)
+    db.commit()
+
+    return {
+        "success": True,
+        "status": "SENT_TO_INBOX",
+        "message": f"Pasien {nama_pasien} dipulangkan dalam kondisi meninggal. Karena belum di-TTE di menu dokumen, Surat Keterangan Kematian otomatis dikirim ke Inbox TTE Dokter DPJP ({signer_name}).",
+        "document_id": doc.id,
+        "tte_status": "UNSIGNED",
+        "is_inbox_sent": True,
         "data": doc
     }

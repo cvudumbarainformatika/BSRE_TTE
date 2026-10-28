@@ -136,13 +136,13 @@
             <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-2">
               <Inbox class="w-5 h-5" />
             </div>
-            <CardTitle class="text-sm font-bold text-foreground">Signature Inbox (Batch TTE)</CardTitle>
+            <CardTitle class="text-sm font-bold text-foreground">Inbox TTE Dokter</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
               {{ pendingInboxCount }} berkas pasien menunggu otorisasi tanda tangan elektronik Anda.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
-            <span class="text-xs font-bold text-amber-500 flex items-center gap-1">Buka Signature Inbox →</span>
+            <span class="text-xs font-bold text-amber-500 flex items-center gap-1">Buka Inbox TTE Dokter →</span>
           </CardContent>
         </Card>
 
@@ -181,7 +181,16 @@
           />
         </template>
 
-        <!-- TAB 2: LEMBAR KONSULTASI SPESIALIS -->
+        <!-- TAB 2: PULANGKAN PASIEN (DISCHARGE) -->
+        <template #pulangkan_pasien>
+          <PulangkanPasienRanapWidget
+            @navigate="navigateToNav"
+            @navigate-doc="subDocTab = 'kematian_ranap'"
+            @patient-discharged="onPatientDischarged"
+          />
+        </template>
+
+        <!-- TAB 3: LEMBAR KONSULTASI SPESIALIS -->
         <template #konsul>
           <SimrsDocWidget
             @document-created="onDocumentCreated"
@@ -192,14 +201,14 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- 3. TAMPILAN KHUSUS MENU: SIGNATURE INBOX                              -->
+    <!-- 3. TAMPILAN KHUSUS MENU: INBOX TTE DOKTER                             -->
     <!-- Langsung fokus ke antrean tanda tangan tanpa elemen dashboard         -->
     <!-- ===================================================================== -->
     <div v-else-if="currentNav === 'inbox'" class="space-y-4">
       <PendingTteInbox
         ref="inboxRef"
         @preview-doc="openViewer"
-        @batch-signed="onBatchSigned"
+        @document-signed="onDocumentSigned"
       />
     </div>
 
@@ -322,6 +331,7 @@ import {
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
 import SuratKematianRanapWidget from '@/widgets/SuratKematianRanapWidget.vue'
+import PulangkanPasienRanapWidget from '@/widgets/PulangkanPasienRanapWidget.vue'
 import SimrsDocWidget from '@/widgets/SimrsDocWidget.vue'
 import DocumentList from '@/widgets/DocumentList.vue'
 import DocumentViewer from '@/widgets/DocumentViewer.vue'
@@ -354,7 +364,8 @@ const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
 
 const docTabItems = computed(() => [
-  { value: 'kematian_ranap', label: '🏥 Surat Kematian Rawat Inap' },
+  { value: 'kematian_ranap', label: '🏥 Surat Kematian (Catatan / Dokumen)' },
+  { value: 'pulangkan_pasien', label: '🚪 Pulangkan Pasien (Discharge)' },
   { value: 'konsul', label: '📋 Lembar Konsultasi Spesialis' }
 ])
 
@@ -392,10 +403,23 @@ const openViewer = (doc) => {
   isViewerOpen.value = true
 }
 
-const onBatchSigned = (result) => {
-  pendingInboxCount.value = Math.max(0, pendingInboxCount.value - (result.signed_count || 0))
+const onDocumentSigned = (result) => {
+  pendingInboxCount.value = Math.max(0, pendingInboxCount.value - 1)
   emit('refresh-notifications')
-  if (docListRef.value) {
+  if (docListRef.value?.loadDocuments) {
+    docListRef.value.loadDocuments()
+  }
+}
+
+const onPatientDischarged = (data) => {
+  emit('refresh-notifications')
+  if (data?.is_inbox_sent) {
+    pendingInboxCount.value++
+  }
+  if (inboxRef.value?.loadPendingDocs) {
+    inboxRef.value.loadPendingDocs()
+  }
+  if (docListRef.value?.loadDocuments) {
     docListRef.value.loadDocuments()
   }
 }

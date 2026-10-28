@@ -9,33 +9,33 @@
         <div>
           <div class="flex items-center gap-2">
             <h3 class="text-base font-bold text-foreground">
-              Signature Inbox — Antrean Dokumen Menunggu TTE BSrE
+              Inbox TTE Dokter — Otorisasi Dokumen Medis
             </h3>
-            <Badge class="bg-amber-500 text-white font-black animate-pulse">
+            <Badge class="bg-amber-500 text-white font-black">
               {{ totalPending }} Dokumen
             </Badge>
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Antrean dokumen Rekam Medis Elektronik (E-RM) yang siap ditandatangani. Anda dapat menandatangani <strong>seluruh dokumen sekaligus (Batch Sign)</strong> dalam 1 kali otorisasi Passphrase BSrE.
+            Daftar dokumen Rekam Medis Elektronik (E-RM) yang masuk ke Inbox Anda untuk diverifikasi dan ditandatangani secara elektronik (TTE BSrE BSSN).
           </p>
         </div>
       </div>
 
-      <!-- Quick Action: Batch Sign Button -->
       <div class="flex items-center gap-2 self-end md:self-center">
         <Button
+          variant="outline"
           size="sm"
-          :disabled="selectedIds.length === 0 || isBatchSigning"
-          @click="openBatchSignModal"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-2 rounded-xl"
+          class="h-8 px-3 gap-1.5 text-xs rounded-lg border-border"
+          :disabled="isLoading"
+          @click="loadPendingDocs"
         >
-          <ShieldCheck class="w-4 h-4" />
-          <span>Tanda Tangani Sekaligus ({{ selectedIds.length }} Terpilih)</span>
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+          <span>Segarkan Inbox</span>
         </Button>
       </div>
     </div>
 
-    <!-- Category Filter & Select All Bar -->
+    <!-- Category Filter Bar -->
     <div class="p-4 bg-muted/30 border-b border-border flex flex-wrap items-center justify-between gap-3 text-xs">
       <div class="flex flex-wrap items-center gap-1.5">
         <Button
@@ -57,40 +57,20 @@
           {{ formatType(type) }} ({{ count }})
         </Button>
       </div>
-
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 cursor-pointer" @click="toggleSelectAll">
-          <Checkbox :checked="isAllSelected" />
-          <Label class="text-xs font-medium text-foreground cursor-pointer">
-            Pilih Semua Dokumen ({{ pendingDocs.length }})
-          </Label>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          class="h-8 px-2.5 gap-1.5 text-xs rounded-lg border-border"
-          :disabled="isLoading"
-          @click="loadPendingDocs"
-        >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-          <span>Sinkron E-RM</span>
-        </Button>
-      </div>
     </div>
 
-    <!-- Feedback Banner Batch Sukses -->
-    <div v-if="batchSuccessInfo" class="m-4">
+    <!-- Feedback Banner Sukses -->
+    <div v-if="successInfo" class="m-4">
       <Alert class="bg-emerald-500/10 border-emerald-500/30 text-emerald-500">
         <AlertTitle class="text-sm font-bold flex items-center justify-between">
-          <span>✓ {{ batchSuccessInfo.message }}</span>
-          <Button variant="ghost" size="sm" class="h-6 px-2 text-xs" @click="batchSuccessInfo = null">
+          <span>✓ {{ successInfo.message }}</span>
+          <Button variant="ghost" size="sm" class="h-6 px-2 text-xs" @click="successInfo = null">
             Tutup
           </Button>
         </AlertTitle>
         <AlertDescription class="text-xs text-muted-foreground mt-1">
-          Penandatangan: <strong class="text-foreground">{{ batchSuccessInfo.signer?.name }}</strong> •
-          Waktu TTE: <strong class="text-foreground">{{ formatDateTime(batchSuccessInfo.signed_at) }}</strong> •
+          Penandatangan: <strong class="text-foreground">{{ successInfo.signer?.name || 'dr. RIA NURMALA SETYANINGRUM' }}</strong> •
+          Waktu TTE: <strong class="text-foreground">{{ formatDateTime(successInfo.signed_at) }}</strong> •
           Sertifikat: <strong class="text-foreground">BSrE BSSN RI</strong>
         </AlertDescription>
       </Alert>
@@ -101,29 +81,24 @@
       <Table>
         <TableHeader>
           <TableRow class="bg-muted/40">
-            <TableHead class="w-12 text-center">
-              <div class="flex justify-center" @click="toggleSelectAll">
-                <Checkbox :checked="isAllSelected" />
-              </div>
-            </TableHead>
             <TableHead class="text-xs font-bold uppercase">Jenis Dokumen</TableHead>
             <TableHead class="text-xs font-bold uppercase">Nama Pasien / Jenazah</TableHead>
             <TableHead class="text-xs font-bold uppercase">No. RM & Kunjungan</TableHead>
             <TableHead class="text-xs font-bold uppercase">Diterbitkan E-RM</TableHead>
-            <TableHead class="text-xs font-bold uppercase text-center">Aksi Cepat</TableHead>
+            <TableHead class="text-xs font-bold uppercase text-center">Aksi</TableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody>
           <TableRow v-if="isLoading">
-            <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
+            <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
               Menyinkronkan & memeriksa antrean dokumen E-RM...
             </TableCell>
           </TableRow>
 
           <TableRow v-else-if="pendingDocs.length === 0">
-            <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
-              Semua dokumen telah ditandatangani! Tidak ada dokumen pending TTE saat ini.
+            <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
+              Semua dokumen telah ditandatangani! Tidak ada dokumen menunggu TTE di Inbox saat ini.
             </TableCell>
           </TableRow>
 
@@ -131,14 +106,7 @@
             v-else
             v-for="doc in pendingDocs"
             :key="doc.id"
-            :class="selectedIds.includes(doc.id) ? 'bg-primary/10' : ''"
           >
-            <TableCell class="text-center">
-              <div class="flex justify-center" @click="toggleDocSelection(doc.id)">
-                <Checkbox :checked="selectedIds.includes(doc.id)" />
-              </div>
-            </TableCell>
-
             <TableCell>
               <div class="flex items-center gap-2">
                 <Badge
@@ -181,10 +149,11 @@
                 </Button>
                 <Button
                   size="sm"
-                  class="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg"
-                  @click="signSingleDoc(doc)"
+                  class="h-7 px-2.5 text-[11px] bg-primary text-primary-foreground font-bold rounded-lg shadow-xs"
+                  @click="openSignModal(doc)"
                 >
-                  Sign TTE
+                  <ShieldCheck class="w-3.5 h-3.5 mr-1" />
+                  Tanda Tangani TTE
                 </Button>
               </div>
             </TableCell>
@@ -193,26 +162,41 @@
       </Table>
     </CardContent>
 
-    <!-- Modal Batch Sign Menggunakan Komponen Modular AppDialog -->
+    <!-- Modal Sign Dokumen Tunggal Menggunakan Komponen Modular AppDialog -->
     <AppDialog
-      v-model="showBatchModal"
-      title="Otorisasi TTE BSrE Massal (Batch Sign)"
-      :description="`Anda akan menandatangani secara elektronik ${selectedIds.length} dokumen sekaligus pada ${currentTodayString}.`"
-      :confirm-text="isBatchSigning ? `Menandatangani ${selectedIds.length} Dokumen...` : `Tandatangani ${selectedIds.length} Dokumen Sekarang`"
+      v-model="showSignModal"
+      title="Otorisasi Tanda Tangan Elektronik (TTE) BSrE BSSN"
+      :description="`Masukkan Passphrase BSrE Anda untuk menandatangani dokumen: ${selectedDoc?.title || ''}`"
+      :confirm-text="isSigning ? 'Menandatangani...' : 'Tandatangani Sekarang'"
       cancel-text="Batal"
-      :confirm-disabled="!passphrase || isBatchSigning"
-      @confirm="executeBatchSign"
+      :confirm-disabled="!passphrase || isSigning"
+      @confirm="executeSign"
     >
       <div class="space-y-4 text-xs">
+        <div v-if="selectedDoc" class="p-3 bg-muted/40 border border-border rounded-xl space-y-1">
+          <div class="flex justify-between">
+            <span class="text-muted-foreground">Dokumen:</span>
+            <span class="font-bold text-foreground">{{ selectedDoc.title }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted-foreground">Pasien:</span>
+            <span class="font-bold text-foreground">{{ getPasienName(selectedDoc) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted-foreground">Tujuan TTE:</span>
+            <span class="font-mono text-foreground">{{ selectedDoc.target_signer_name || 'dr. RIA NURMALA SETYANINGRUM' }}</span>
+          </div>
+        </div>
+
         <AppInput
-          id="batch-passphrase-input"
+          id="inbox-passphrase-input"
           label="Passphrase / PIN Pengaman BSrE BSSN *"
           v-model="passphrase"
           type="password"
           placeholder="Masukkan Passphrase BSrE Anda..."
-          hint="Sesuai Kriteria Keamanan BSrE BSSN: Passphrase tidak disimpan pada browser maupun database."
-          :error="batchErrorMsg"
-          @keyup.enter="executeBatchSign"
+          hint="Passphrase dikirim secara terenkripsi ke Engine BSrE dan tidak disimpan di database."
+          :error="errorMsg"
+          @keyup.enter="executeSign"
         />
       </div>
     </AppDialog>
@@ -220,15 +204,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { documentApi } from '@/services/api'
 import AppInput from '@/components/AppInput.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import {
   Table,
@@ -240,51 +222,20 @@ import {
 } from '@/components/ui/table'
 import { Bell, ShieldCheck, RefreshCw } from 'lucide-vue-next'
 
-const emit = defineEmits(['preview-doc', 'batch-signed'])
+const emit = defineEmits(['preview-doc', 'document-signed'])
 
 const pendingDocs = ref([])
 const totalPending = ref(0)
 const summaryByType = ref({})
 const selectedType = ref('')
-const selectedIds = ref([])
 const isLoading = ref(false)
-const isBatchSigning = ref(false)
 
-const showBatchModal = ref(false)
+const showSignModal = ref(false)
+const selectedDoc = ref(null)
 const passphrase = ref('')
-const batchErrorMsg = ref('')
-const batchSuccessInfo = ref(null)
-
-const currentTodayString = computed(() => {
-  return new Date().toLocaleDateString('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-})
-
-const isAllSelected = computed(() => {
-  if (pendingDocs.value.length === 0) return false
-  return pendingDocs.value.every((d) => selectedIds.value.includes(d.id))
-})
-
-const toggleSelectAll = () => {
-  if (isAllSelected.value) {
-    selectedIds.value = []
-  } else {
-    selectedIds.value = pendingDocs.value.map((d) => d.id)
-  }
-}
-
-const toggleDocSelection = (docId) => {
-  const idx = selectedIds.value.indexOf(docId)
-  if (idx >= 0) {
-    selectedIds.value.splice(idx, 1)
-  } else {
-    selectedIds.value.push(docId)
-  }
-}
+const isSigning = ref(false)
+const errorMsg = ref('')
+const successInfo = ref(null)
 
 const loadPendingDocs = async () => {
   isLoading.value = true
@@ -295,7 +246,6 @@ const loadPendingDocs = async () => {
     pendingDocs.value = res.data.data
     totalPending.value = res.data.total_pending
     summaryByType.value = res.data.summary_by_type
-    selectedIds.value = pendingDocs.value.map((d) => d.id)
   } catch (err) {
     console.error('Gagal mengambil antrean pending:', err)
   } finally {
@@ -308,40 +258,36 @@ const changeCategory = (type) => {
   loadPendingDocs()
 }
 
-const openBatchSignModal = () => {
-  if (selectedIds.value.length === 0) return
-  batchErrorMsg.value = ''
+const openSignModal = (doc) => {
+  selectedDoc.value = doc
+  errorMsg.value = ''
   passphrase.value = ''
-  showBatchModal.value = true
+  showSignModal.value = true
 }
 
-const executeBatchSign = async () => {
-  if (selectedIds.value.length === 0) return
-  isBatchSigning.value = true
-  batchErrorMsg.value = ''
+const executeSign = async () => {
+  if (!selectedDoc.value) return
+  isSigning.value = true
+  errorMsg.value = ''
   try {
-    const res = await documentApi.batchSignTte({
-      document_ids: selectedIds.value,
-      passphrase: passphrase.value
+    const res = await documentApi.signTte(selectedDoc.value.id, {
+      passphrase: passphrase.value,
+      catatan: 'Ditandatangani melalui Inbox TTE Dokter E-RM'
     })
-    batchSuccessInfo.value = res.data
-    showBatchModal.value = false
-    selectedIds.value = []
+    successInfo.value = {
+      message: res.data.message || `Dokumen ${selectedDoc.value.title} berhasil ditandatangani!`,
+      signer: res.data.signer,
+      signed_at: res.data.signed_at || new Date().toISOString()
+    }
+    showSignModal.value = false
     passphrase.value = ''
     await loadPendingDocs()
-    emit('batch-signed', res.data)
+    emit('document-signed', res.data)
   } catch (err) {
-    batchErrorMsg.value = err.response?.data?.detail || 'Gagal menandatangani batch dokumen'
+    errorMsg.value = err.response?.data?.detail || 'Gagal menandatangani dokumen dengan BSrE'
   } finally {
-    isBatchSigning.value = false
+    isSigning.value = false
   }
-}
-
-const signSingleDoc = (doc) => {
-  selectedIds.value = [doc.id]
-  batchErrorMsg.value = ''
-  passphrase.value = ''
-  showBatchModal.value = true
 }
 
 const formatType = (type) => {
@@ -359,7 +305,7 @@ const getPasienName = (doc) => {
   if (doc.metadata_json) {
     try {
       const meta = JSON.parse(doc.metadata_json)
-      return meta.pasien?.nama || doc.title
+      return meta.pasien?.nama || meta.pasien?.nama_panggil || doc.title
     } catch (e) {}
   }
   return doc.title

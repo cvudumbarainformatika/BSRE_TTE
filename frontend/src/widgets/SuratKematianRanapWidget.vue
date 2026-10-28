@@ -7,14 +7,14 @@
           <div class="space-y-1">
             <div class="flex items-center gap-2">
               <Badge class="bg-primary/10 text-primary border border-primary/30 uppercase font-bold text-[10px]">
-                E-RM TERINTEGRASI
+                RANAP • CATATAN / DOKUMEN
               </Badge>
               <CardTitle class="text-base font-black text-foreground uppercase">
-                Dokumen Surat Keterangan Kematian (Rawat Inap)
+                Surat Keterangan Kematian (Rawat Inap)
               </CardTitle>
             </div>
             <CardDescription class="text-xs text-muted-foreground">
-              Penerbitan dan pengesahan Surat Keterangan Kematian Pasien Rawat Inap terintegrasi Rekam Medis Elektronik (E-RM).
+              Menu E-RM Ranap untuk penerbitan dokumen kematian, pengiriman ke Inbox TTE DPJP, atau penandatanganan TTE langsung.
             </CardDescription>
           </div>
 
@@ -63,18 +63,30 @@
               variant="outline"
               class="bg-amber-500/10 text-amber-500 border border-amber-500/30 px-3 py-1 text-xs font-bold"
             >
-              ⏳ Menunggu TTE di Signature Inbox
+              ⏳ Menunggu TTE di Inbox
             </Badge>
 
-            <!-- Tombol Tanda Tangani BSrE Sekarang -->
+            <!-- Tombol 1: Kirim ke Inbox -->
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="isSubmitting || isSendingToInbox"
+              @click="sendToInboxOnly"
+              class="border-primary/40 text-primary hover:bg-primary/10 text-xs font-bold gap-1.5 rounded-xl shadow-xs"
+            >
+              <Send class="w-3.5 h-3.5" :class="{ 'animate-pulse': isSendingToInbox }" />
+              <span>{{ isSendingToInbox ? 'Mengirim ke Inbox...' : 'Kirim ke Inbox' }}</span>
+            </Button>
+
+            <!-- Tombol 2: Tanda Tangani TTE BSrE -->
             <Button
               size="sm"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || isSendingToInbox || currentTteStatus === 'SIGNED_BSRE'"
               @click="openDirectSignModal"
               class="bg-primary text-primary-foreground text-xs font-bold gap-1.5 rounded-xl shadow-xs"
             >
               <ShieldCheck class="w-4 h-4" />
-              <span>Tanda Tangani TTE BSrE Sekarang</span>
+              <span>{{ currentTteStatus === 'SIGNED_BSRE' ? 'Telah Di-TTE Sah' : 'Tanda Tangani TTE' }}</span>
             </Button>
 
             <!-- Tombol Preview PDF Resmi -->
@@ -83,10 +95,10 @@
               variant="outline"
               size="sm"
               @click="openPdfViewer"
-              class="border-primary/40 text-primary hover:bg-primary/10 text-xs font-bold gap-1.5 rounded-xl"
+              class="border-border text-foreground hover:bg-muted text-xs font-bold gap-1.5 rounded-xl"
             >
               <FileText class="w-4 h-4" />
-              <span>Preview & Cetak PDF Resmi</span>
+              <span>Preview PDF</span>
             </Button>
           </div>
         </div>
@@ -370,7 +382,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { RefreshCw, ShieldCheck, FileText } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck, FileText, Send } from 'lucide-vue-next'
 
 import logoKotaGrey from '@/assets/images/logo-kota-grey.png'
 import logoRsud from '@/assets/images/logo-rsud.png'
@@ -414,6 +426,7 @@ const dpjpData = reactive({
 const diagnosaText = ref('Cardiac arrest, unspecified')
 
 const isSubmitting = ref(false)
+const isSendingToInbox = ref(false)
 const showSignModal = ref(false)
 const passphrase = ref('')
 const showPass = ref(false)
@@ -522,6 +535,31 @@ const openDirectSignModal = () => {
   modalError.value = ''
   passphrase.value = ''
   showSignModal.value = true
+}
+
+const sendToInboxOnly = async () => {
+  if (currentTteStatus.value === 'SIGNED_BSRE') {
+    feedbackError.value = false
+    feedbackMsg.value = 'Dokumen Surat Keterangan Kematian ini sudah berstatus Sah TTE BSrE, tidak perlu dikirim ke Inbox lagi.'
+    return
+  }
+  isSendingToInbox.value = true
+  feedbackMsg.value = ''
+  feedbackError.value = false
+  try {
+    const res = await documentApi.finalizeSuratKematianRanap(buildPayload(false))
+    lastResult.value = res.data
+    activeDocumentId.value = res.data.document_id || res.data.data?.id
+    currentTteStatus.value = 'UNSIGNED'
+    feedbackMsg.value = res.data.message || 'Dokumen Surat Keterangan Kematian berhasil disimpan ke Inbox TTE Dokter DPJP!'
+    await loadFromMysql(false)
+    emit('document-created', res.data.data)
+  } catch (err) {
+    feedbackError.value = true
+    feedbackMsg.value = err.response?.data?.detail || 'Gagal mengirim dokumen ke Inbox TTE'
+  } finally {
+    isSendingToInbox.value = false
+  }
 }
 
 const executeDirectSign = async () => {
