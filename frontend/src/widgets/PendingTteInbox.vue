@@ -16,7 +16,7 @@
             </Badge>
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Dokumen dari database MySQL SIMRS secara otomatis ditarik ke antrean ini tanpa perlu klik kirim per dokumen di SIMRS. Anda dapat menandatangani <strong>seluruh dokumen sekaligus (Batch Sign)</strong> dalam 1 kali otorisasi Passphrase BSrE.
+            Antrean dokumen Rekam Medis Elektronik (E-RM) yang siap ditandatangani. Anda dapat menandatangani <strong>seluruh dokumen sekaligus (Batch Sign)</strong> dalam 1 kali otorisasi Passphrase BSrE.
           </p>
         </div>
       </div>
@@ -74,7 +74,7 @@
           @click="loadPendingDocs"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-          <span>Sync SIMRS</span>
+          <span>Sinkron E-RM</span>
         </Button>
       </div>
     </div>
@@ -109,7 +109,7 @@
             <TableHead class="text-xs font-bold uppercase">Jenis Dokumen</TableHead>
             <TableHead class="text-xs font-bold uppercase">Nama Pasien / Jenazah</TableHead>
             <TableHead class="text-xs font-bold uppercase">No. RM & Kunjungan</TableHead>
-            <TableHead class="text-xs font-bold uppercase">Diterbitkan SIMRS</TableHead>
+            <TableHead class="text-xs font-bold uppercase">Diterbitkan E-RM</TableHead>
             <TableHead class="text-xs font-bold uppercase text-center">Aksi Cepat</TableHead>
           </TableRow>
         </TableHeader>
@@ -117,7 +117,7 @@
         <TableBody>
           <TableRow v-if="isLoading">
             <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
-              Menyinkronkan & memeriksa antrean dokumen dari MySQL SIMRS...
+              Menyinkronkan & memeriksa antrean dokumen E-RM...
             </TableCell>
           </TableRow>
 

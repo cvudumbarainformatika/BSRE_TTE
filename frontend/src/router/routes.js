@@ -7,7 +7,7 @@ const routes = [
         path: '',
         name: 'dashboard',
         component: () => import('pages/DashboardPage.vue'),
-        meta: { title: 'SIMRS Dokumen & TTE BSRE' }
+        meta: { title: 'E-RM Dokumen & TTE BSRE' }
       }
     ]
   },

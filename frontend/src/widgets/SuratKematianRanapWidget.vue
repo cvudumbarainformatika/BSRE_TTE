@@ -6,15 +6,15 @@
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <Badge class="bg-primary/15 text-primary border border-primary/30 uppercase font-bold text-[10px]">
-                SYNC MYSQL SIMRS READ-ONLY (SELECT ONLY)
+              <Badge class="bg-primary/10 text-primary border border-primary/30 uppercase font-bold text-[10px]">
+                E-RM TERINTEGRASI
               </Badge>
               <CardTitle class="text-base font-black text-foreground uppercase">
                 Dokumen Surat Keterangan Kematian (Rawat Inap)
               </CardTitle>
             </div>
             <CardDescription class="text-xs text-muted-foreground">
-              Data ditarik otomatis dari database MySQL SIMRS (<code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs23</code>, <code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs23_nosurat</code>, <code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs15</code>) tanpa mengubah kode SIMRS.
+              Penerbitan dan pengesahan Surat Keterangan Kematian Pasien Rawat Inap terintegrasi Rekam Medis Elektronik (E-RM).
             </CardDescription>
           </div>
 
@@ -27,25 +27,25 @@
               class="text-xs font-bold gap-1.5 rounded-lg border-border"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingMysql }" />
-              <span>{{ isLoadingMysql ? 'Menyinkronkan MySQL SIMRS...' : 'Tarik & Sync Otomatis dari SIMRS' }}</span>
+              <span>{{ isLoadingMysql ? 'Menyinkronkan E-RM...' : 'Segarkan Data E-RM' }}</span>
             </Button>
           </div>
         </div>
       </CardHeader>
 
       <CardContent class="pt-4 space-y-4">
-        <!-- Pilih Pasien Meninggal Riil dari MySQL SIMRS menggunakan AppSelect Modular -->
+        <!-- Pilih Pasien Meninggal dari E-RM menggunakan AppSelect Modular -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
           <div class="lg:col-span-6">
             <AppSelect
               id="select-pasien-mysql"
-              label="Pilih Data Pasien Meninggal (Riil dari Database MySQL SIMRS)"
+              label="Pilih Data Pasien Meninggal (E-RM)"
               v-model="selectedNoreg"
               :options="mysqlRecordsOptions"
               text-key="label"
               value-key="value"
               option-key="value"
-              placeholder="Pilih pasien meninggal dari MySQL SIMRS..."
+              placeholder="Pilih data pasien meninggal..."
               @update:model-value="onSelectMysqlRecord"
             />
           </div>
@@ -495,11 +495,11 @@ const loadFromMysql = async (showNotice = false) => {
 
     if (showNotice) {
       feedbackError.value = false
-      feedbackMsg.value = `Berhasil menarik ${mysqlRecords.value.length} Surat Keterangan Kematian dari MySQL SIMRS (${res.data.sync_summary?.newly_synced || 0} dokumen baru masuk Signature Inbox).`
+      feedbackMsg.value = `Berhasil memuat ${mysqlRecords.value.length} data Surat Keterangan Kematian (${res.data.sync_summary?.newly_synced || 0} dokumen baru masuk Signature Inbox).`
       emit('document-created')
     }
   } catch (err) {
-    console.error('Gagal tarik data MySQL SIMRS:', err)
+    console.error('Gagal memuat data E-RM:', err)
   } finally {
     isLoadingMysql.value = false
   }

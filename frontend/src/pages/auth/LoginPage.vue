@@ -11,7 +11,7 @@
             <div class="h-20 w-20 bg-white shadow-xl rounded-[24px] flex items-center justify-center mb-5 ring-1 ring-black/5">
               <img :src="logoRsud" alt="Logo RSUD" class="h-12 w-12 object-contain" />
             </div>
-            <h1 class="text-2xl font-black tracking-tight text-slate-800 mb-2">SIMRS TTE BSrE</h1>
+            <h1 class="text-2xl font-black tracking-tight text-slate-800 mb-2">E-RM TTE BSrE</h1>
             <Badge variant="secondary" class="px-4 py-1 text-[10px] uppercase tracking-widest font-black">
               RSUD dr. Mohamad Saleh
             </Badge>

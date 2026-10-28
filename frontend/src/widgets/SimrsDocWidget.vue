@@ -3,7 +3,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-wrap items-center justify-between pb-4 mb-4 border-b border-border gap-3">
       <div class="flex items-center gap-2">
-        <Badge class="bg-primary/20 text-primary font-bold text-xs">SIMRS-V3</Badge>
+        <Badge class="bg-primary/20 text-primary font-bold text-xs">E-RM</Badge>
         <h2 class="text-sm md:text-base font-bold text-foreground uppercase tracking-wide">
           Lembar Konsultasi Dokter Spesialis
         </h2>

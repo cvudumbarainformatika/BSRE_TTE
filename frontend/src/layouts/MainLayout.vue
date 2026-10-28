@@ -72,10 +72,10 @@
             <span class="font-bold text-xs tracking-wide">E-ARCHIVE BSrE</span>
           </div>
 
-          <!-- Indikator Integrasi SIMRS MySQL -->
+          <!-- Indikator Integrasi E-RM -->
           <div class="hidden lg:flex items-center gap-2 text-xs text-muted-foreground font-medium">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>SIMRS MySQL Read-Only Sync: <strong class="text-foreground">Aktif (192.168.11.1)</strong></span>
+            <span>E-RM Microservice TTE BSrE BSSN • <strong class="text-foreground">UOBK RSUD dr. Mohamad Saleh</strong></span>
           </div>
         </div>
 
@@ -208,7 +208,7 @@
 
       <!-- FOOTER -->
       <footer class="h-9 bg-sidebar border-t border-border px-6 flex items-center justify-between text-[11px] text-muted-foreground shrink-0 shadow-xs">
-        <div>SIMRS Microservice TTE BSrE BSSN • UOBK RSUD dr. Mohamad Saleh</div>
+        <div>E-RM Microservice TTE BSrE BSSN • UOBK RSUD dr. Mohamad Saleh</div>
         <div class="font-mono text-[10px]">Permenkes No. 24/2022 • UU ITE</div>
       </footer>
     </div>
@@ -226,7 +226,6 @@ import {
   LayoutDashboard,
   FileText,
   Inbox,
-  Stethoscope,
   Archive,
   Sparkles,
   Sun,
@@ -243,14 +242,13 @@ const roles = [
 
 const navMenuItems = [
   { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
-  { id: 'kematian_ranap', label: 'Surat Kematian Ranap', icon: FileText },
+  { id: 'dokumen', label: 'Dokumen', icon: FileText },
   { id: 'inbox', label: 'Signature Inbox (Batch)', icon: Inbox },
-  { id: 'simrs', label: 'Lembar Konsultasi', icon: Stethoscope },
   { id: 'list', label: 'Arsip & Verifikasi Dokumen', icon: Archive },
   { id: 'vector', label: 'Pencarian Semantik AI', icon: Sparkles }
 ]
 
-const activeNav = ref('kematian_ranap')
+const activeNav = ref('dashboard') // Menu pertama yang aktif adalah dashboard!
 const isDark = ref(false) // Default Light Mode!
 
 const activeUser = ref({
@@ -318,7 +316,7 @@ const switchRole = async (target) => {
     activeUser.value = {
       id: 1,
       username: target.username,
-      nama: target.role === 'dokter' ? 'dr. RIA NURMALA SETYANINGRUM' : 'Petugas SIMRS',
+      nama: target.role === 'dokter' ? 'dr. RIA NURMALA SETYANINGRUM' : 'Petugas E-RM',
       role: target.role
     }
   }
