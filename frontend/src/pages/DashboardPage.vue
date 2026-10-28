@@ -103,6 +103,7 @@
 
     <!-- Navigation Menggunakan Komponen Modular AppTabs -->
     <AppTabs
+      v-model="currentTab"
       :tabs="tabItems"
       :default-tab="currentTab"
       @tab-change="onTabChanged"
@@ -359,7 +360,16 @@ const handleOpenInbox = () => {
 
 const handleNavTabChange = (e) => {
   if (e.detail) {
-    currentTab.value = e.detail
+    if (e.detail === 'dashboard') {
+      currentTab.value = 'kematian_ranap'
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      currentTab.value = e.detail
+      if (e.detail === 'inbox' && inboxRef.value) {
+        inboxRef.value.loadPendingDocs()
+      }
+    }
+    emit('switch-tab', e.detail)
   }
 }
 

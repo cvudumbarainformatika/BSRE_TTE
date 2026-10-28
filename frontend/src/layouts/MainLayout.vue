@@ -1,10 +1,10 @@
 <template>
   <div class="h-screen overflow-hidden flex bg-background text-foreground font-sans">
     <!-- SIDEBAR NAV (Mengikuti Desain ui-mantap.html) -->
-    <aside class="w-64 glass-panel border-r border-border hidden md:flex flex-col justify-between z-20 shrink-0">
+    <aside class="w-64 bg-sidebar border-r border-border hidden md:flex flex-col justify-between z-20 shrink-0 shadow-xs">
       <div class="flex flex-col flex-1 overflow-y-auto">
         <!-- Logo & Brand Header -->
-        <div class="p-5 flex items-center space-x-3 border-b border-border">
+        <div class="p-5 flex items-center space-x-3 border-b border-border bg-sidebar">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg shadow-cyan-500/20">
             <ShieldCheck class="w-6 h-6" />
           </div>
@@ -17,7 +17,7 @@
         </div>
 
         <!-- Instansi Sub-Header -->
-        <div class="px-5 py-2.5 bg-muted/40 border-b border-border text-[11px] text-muted-foreground">
+        <div class="px-5 py-2.5 bg-muted/40 border-b border-border text-[11px] text-muted-foreground font-medium">
           UOBK RSUD dr. Mohamad Saleh
         </div>
 
@@ -27,8 +27,8 @@
             v-for="item in navMenuItems"
             :key="item.id"
             :variant="activeNav === item.id ? 'secondary' : 'ghost'"
-            class="w-full justify-start gap-3 h-11 px-3 text-xs font-medium rounded-xl transition-all"
-            :class="activeNav === item.id ? 'bg-primary/15 text-primary border border-primary/25 font-semibold shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+            class="w-full justify-start gap-3 h-11 px-3 text-xs font-medium rounded-xl transition-all cursor-pointer"
+            :class="activeNav === item.id ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'"
             @click="navigateTo(item.id)"
           >
             <component :is="item.icon" class="w-4 h-4 shrink-0" :class="activeNav === item.id ? 'text-primary' : 'text-muted-foreground'" />
@@ -44,13 +44,13 @@
       </div>
 
       <!-- BSrE Status Badge at Bottom Sidebar (ui-mantap.html) -->
-      <div class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/5">
+      <div class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             BSrE Service Connected
           </span>
-          <Activity class="w-3.5 h-3.5 text-emerald-400" />
+          <Activity class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
         </div>
         <p class="text-[11px] text-muted-foreground">
           ID Sertifikat: <span class="font-mono text-foreground font-semibold">BSRE-20261027-83FC</span>
@@ -62,7 +62,7 @@
     <!-- MAIN CONTENT AREA -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
       <!-- HEADER TOP BAR -->
-      <header class="h-16 glass-panel border-b border-border px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
+      <header class="h-16 bg-sidebar border-b border-border px-4 sm:px-6 flex items-center justify-between z-10 shrink-0 shadow-xs">
         <!-- Brand on Mobile / Quick Title on Desktop -->
         <div class="flex items-center gap-3">
           <div class="md:hidden flex items-center gap-2">
@@ -74,8 +74,8 @@
 
           <!-- Indikator Integrasi SIMRS MySQL -->
           <div class="hidden lg:flex items-center gap-2 text-xs text-muted-foreground font-medium">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>SIMRS MySQL Read-Only Sync: <strong class="text-foreground">Aktif</strong></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span>SIMRS MySQL Read-Only Sync: <strong class="text-foreground">Aktif (192.168.11.1)</strong></span>
           </div>
         </div>
 
@@ -100,11 +100,11 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9 rounded-xl border border-border/50 text-foreground hover:bg-muted"
+            class="h-9 w-9 rounded-xl border border-border text-foreground hover:bg-muted"
             title="Ganti Mode Gelap / Terang"
             @click="toggleDarkMode"
           >
-            <Sun v-if="isDark" class="w-4 h-4 text-amber-400 transition-transform duration-300 rotate-0" />
+            <Sun v-if="isDark" class="w-4 h-4 text-amber-400 transition-transform duration-300" />
             <Moon v-else class="w-4 h-4 text-slate-700 transition-transform duration-300" />
           </Button>
 
@@ -113,7 +113,7 @@
             <Button
               variant="ghost"
               size="icon"
-              class="relative h-9 w-9 rounded-xl border border-border/50 text-foreground hover:bg-muted"
+              class="relative h-9 w-9 rounded-xl border border-border text-foreground hover:bg-muted"
               title="Notifikasi Dokumen Pending TTE"
               @click="toggleNotificationDropdown"
             >
@@ -163,7 +163,7 @@
                   <div class="pt-1 flex justify-end">
                     <Button
                       size="sm"
-                      class="h-7 px-3 bg-primary text-primary-foreground text-[10px] font-bold"
+                      class="h-7 px-3 bg-primary text-primary-foreground text-[10px] font-bold rounded-lg"
                       @click="goToBatchSign()"
                     >
                       Buka Antrean & Sign Sekarang →
@@ -195,8 +195,8 @@
         </div>
       </header>
 
-      <!-- DYNAMIC CONTENT CONTAINER -->
-      <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-background/50">
+      <!-- DYNAMIC CONTENT CONTAINER (Background kontras slate-200) -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
         <router-view
           :current-user="activeUser"
           :pending-count="pendingCount"
@@ -207,7 +207,7 @@
       </main>
 
       <!-- FOOTER -->
-      <footer class="h-9 glass-panel border-t border-border px-6 flex items-center justify-between text-[11px] text-muted-foreground shrink-0">
+      <footer class="h-9 bg-sidebar border-t border-border px-6 flex items-center justify-between text-[11px] text-muted-foreground shrink-0 shadow-xs">
         <div>SIMRS Microservice TTE BSrE BSSN • UOBK RSUD dr. Mohamad Saleh</div>
         <div class="font-mono text-[10px]">Permenkes No. 24/2022 • UU ITE</div>
       </footer>
@@ -223,6 +223,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
   ShieldCheck,
+  LayoutDashboard,
   FileText,
   Inbox,
   Stethoscope,
@@ -241,6 +242,7 @@ const roles = [
 ]
 
 const navMenuItems = [
+  { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'kematian_ranap', label: 'Surat Kematian Ranap', icon: FileText },
   { id: 'inbox', label: 'Signature Inbox (Batch)', icon: Inbox },
   { id: 'simrs', label: 'Lembar Konsultasi', icon: Stethoscope },
@@ -249,7 +251,7 @@ const navMenuItems = [
 ]
 
 const activeNav = ref('kematian_ranap')
-const isDark = ref(true)
+const isDark = ref(false) // Default Light Mode!
 
 const activeUser = ref({
   id: 1,
@@ -330,8 +332,8 @@ const goToBatchSign = () => {
 }
 
 onMounted(() => {
-  // Inisialisasi Tema Dark / Light
-  const savedTheme = localStorage.getItem('theme') || 'dark'
+  // Inisialisasi Tema: DEFAULT LIGHT MODE sesuai instruksi pengguna
+  const savedTheme = localStorage.getItem('theme') || 'light'
   applyTheme(savedTheme === 'dark')
 
   // Listen event perubahan tab dari widget jika ada
