@@ -165,39 +165,13 @@
 
     <!-- ===================================================================== -->
     <!-- 2. TAMPILAN KHUSUS MENU: DOKUMEN                                      -->
-    <!-- Pengelompokan dokumen ada di tab internal halaman dokumen saja!       -->
+    <!-- HANYA Dokumen Surat Kematian Ranap                                    -->
     <!-- ===================================================================== -->
     <div v-else-if="currentNav === 'dokumen'" class="space-y-4">
-      <AppTabs
-        v-model="subDocTab"
-        :tabs="docTabItems"
-        default-tab="kematian_ranap"
-      >
-        <!-- TAB 1: SURAT KEMATIAN RAWAT INAP -->
-        <template #kematian_ranap>
-          <SuratKematianRanapWidget
-            @document-created="onDocumentCreated"
-            @view-generated="openViewer"
-          />
-        </template>
-
-        <!-- TAB 2: PULANGKAN PASIEN (DISCHARGE) -->
-        <template #pulangkan_pasien>
-          <PulangkanPasienRanapWidget
-            @navigate="navigateToNav"
-            @navigate-doc="subDocTab = 'kematian_ranap'"
-            @patient-discharged="onPatientDischarged"
-          />
-        </template>
-
-        <!-- TAB 3: LEMBAR KONSULTASI SPESIALIS -->
-        <template #konsul>
-          <SimrsDocWidget
-            @document-created="onDocumentCreated"
-            @view-generated="openViewer"
-          />
-        </template>
-      </AppTabs>
+      <SuratKematianRanapWidget
+        @document-created="onDocumentCreated"
+        @view-generated="openViewer"
+      />
     </div>
 
     <!-- ===================================================================== -->
@@ -331,8 +305,6 @@ import {
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
 import SuratKematianRanapWidget from '@/widgets/SuratKematianRanapWidget.vue'
-import PulangkanPasienRanapWidget from '@/widgets/PulangkanPasienRanapWidget.vue'
-import SimrsDocWidget from '@/widgets/SimrsDocWidget.vue'
 import DocumentList from '@/widgets/DocumentList.vue'
 import DocumentViewer from '@/widgets/DocumentViewer.vue'
 
@@ -355,19 +327,12 @@ const emit = defineEmits(['refresh-notifications', 'switch-tab'])
 
 const isPageLoading = ref(false)
 const currentNav = ref(props.activeNav || 'dashboard')
-const subDocTab = ref('kematian_ranap')
 
 const inboxRef = ref(null)
 const docListRef = ref(null)
 const selectedDoc = ref(null)
 const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
-
-const docTabItems = computed(() => [
-  { value: 'kematian_ranap', label: '🏥 Surat Kematian (Catatan / Dokumen)' },
-  { value: 'pulangkan_pasien', label: '🚪 Pulangkan Pasien (Discharge)' },
-  { value: 'konsul', label: '📋 Lembar Konsultasi Spesialis' }
-])
 
 const vectorQuery = ref('Cardiac arrest Respiratory arrest')
 const vectorResults = ref([])
@@ -406,19 +371,6 @@ const openViewer = (doc) => {
 const onDocumentSigned = (result) => {
   pendingInboxCount.value = Math.max(0, pendingInboxCount.value - 1)
   emit('refresh-notifications')
-  if (docListRef.value?.loadDocuments) {
-    docListRef.value.loadDocuments()
-  }
-}
-
-const onPatientDischarged = (data) => {
-  emit('refresh-notifications')
-  if (data?.is_inbox_sent) {
-    pendingInboxCount.value++
-  }
-  if (inboxRef.value?.loadPendingDocs) {
-    inboxRef.value.loadPendingDocs()
-  }
   if (docListRef.value?.loadDocuments) {
     docListRef.value.loadDocuments()
   }

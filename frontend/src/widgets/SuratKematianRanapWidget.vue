@@ -59,36 +59,17 @@
               ✓ TERVERIFIKASI TTE BSrE
             </Badge>
             <Badge
-              v-else-if="activeDocumentId"
+              v-else
               variant="outline"
               class="bg-amber-500/10 text-amber-500 border border-amber-500/30 px-3 py-1 text-xs font-bold"
             >
-              ⏳ Menunggu TTE di Inbox
-            </Badge>
-            <Badge
-              v-else
-              variant="outline"
-              class="bg-muted text-muted-foreground border-border px-3 py-1 text-xs font-bold"
-            >
-              📝 Draft Baru (Belum Masuk Inbox)
+              ⏳ Belum Ditandatangani TTE
             </Badge>
 
-            <!-- Tombol 1: Kirim ke Inbox -->
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="isSubmitting || isSendingToInbox"
-              @click="sendToInboxOnly"
-              class="border-primary/40 text-primary hover:bg-primary/10 text-xs font-bold gap-1.5 rounded-xl shadow-xs"
-            >
-              <Send class="w-3.5 h-3.5" :class="{ 'animate-pulse': isSendingToInbox }" />
-              <span>{{ isSendingToInbox ? 'Mengirim ke Inbox...' : 'Kirim ke Inbox' }}</span>
-            </Button>
-
-            <!-- Tombol 2: Tanda Tangani TTE BSrE -->
+            <!-- Tombol Tanda Tangani TTE BSrE -->
             <Button
               size="sm"
-              :disabled="isSubmitting || isSendingToInbox || currentTteStatus === 'SIGNED_BSRE'"
+              :disabled="isSubmitting || currentTteStatus === 'SIGNED_BSRE'"
               @click="openDirectSignModal"
               class="bg-primary text-primary-foreground text-xs font-bold gap-1.5 rounded-xl shadow-xs"
             >
@@ -389,7 +370,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import { RefreshCw, ShieldCheck, FileText, Send } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck, FileText } from 'lucide-vue-next'
 
 import logoKotaGrey from '@/assets/images/logo-kota-grey.png'
 import logoRsud from '@/assets/images/logo-rsud.png'
@@ -433,7 +414,6 @@ const dpjpData = reactive({
 const diagnosaText = ref('Cardiac arrest, unspecified')
 
 const isSubmitting = ref(false)
-const isSendingToInbox = ref(false)
 const showSignModal = ref(false)
 const passphrase = ref('')
 const showPass = ref(false)
@@ -550,31 +530,6 @@ const openDirectSignModal = () => {
   modalError.value = ''
   passphrase.value = ''
   showSignModal.value = true
-}
-
-const sendToInboxOnly = async () => {
-  if (currentTteStatus.value === 'SIGNED_BSRE') {
-    feedbackError.value = false
-    feedbackMsg.value = 'Dokumen Surat Keterangan Kematian ini sudah berstatus Sah TTE BSrE, tidak perlu dikirim ke Inbox lagi.'
-    return
-  }
-  isSendingToInbox.value = true
-  feedbackMsg.value = ''
-  feedbackError.value = false
-  try {
-    const res = await documentApi.finalizeSuratKematianRanap(buildPayload(false))
-    lastResult.value = res.data
-    activeDocumentId.value = res.data.document_id || res.data.data?.id
-    currentTteStatus.value = 'UNSIGNED'
-    feedbackMsg.value = res.data.message || 'Dokumen Surat Keterangan Kematian berhasil disimpan ke Inbox TTE Dokter DPJP!'
-    await loadFromMysql(false)
-    emit('document-created', res.data.data)
-  } catch (err) {
-    feedbackError.value = true
-    feedbackMsg.value = err.response?.data?.detail || 'Gagal mengirim dokumen ke Inbox TTE'
-  } finally {
-    isSendingToInbox.value = false
-  }
 }
 
 const executeDirectSign = async () => {
