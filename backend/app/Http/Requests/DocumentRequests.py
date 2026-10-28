@@ -58,3 +58,17 @@ class DocumentApproveRequest(BaseModel):
 class SemanticSearchRequest(BaseModel):
     query: str
     limit: int = 10
+
+class PulangkanPasienRanapRequest(BaseModel):
+    noreg: str
+    norm: Optional[str] = None
+    nama_pasien: Optional[str] = None
+    tglkeluar: Optional[str] = None
+    carakeluar: Optional[str] = "C003"
+    keadaan_keluar: Optional[str] = "Meninggal"
+    nosrtmeninggal: Optional[str] = None
+    jamMeninggal: Optional[str] = None
+    diagnosa: Optional[str] = None
+    kddrygmenyatakan: Optional[str] = None
+    pasien: Optional[Dict[str, Any]] = None
+    dpjp: Optional[Dict[str, Any]] = None
