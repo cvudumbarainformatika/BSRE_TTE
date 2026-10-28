@@ -24,7 +24,7 @@
             @click="navigateToNav('inbox')"
           >
             <FileSignature class="w-4 h-4" />
-            <span>Tanda Tangani Batch TTE ({{ pendingInboxCount }})</span>
+            <span>Inbox TTE ({{ pendingInboxCount }})</span>
           </Button>
           <Button
             variant="outline"
@@ -32,7 +32,7 @@
             @click="navigateToNav('dokumen')"
           >
             <FileText class="w-4 h-4" />
-            <span>Kelola Dokumen E-RM</span>
+            <span>Dokumen Sah TTE</span>
           </Button>
         </div>
         <!-- Background Glow Decor -->
@@ -116,67 +116,55 @@
 
       <!-- Quick Action Cards Dashboard -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-        <Card class="glass-panel border-border hover:border-primary/40 transition-all cursor-pointer" @click="navigateToNav('dokumen')">
-          <CardHeader class="pb-2">
-            <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
-              <FileText class="w-5 h-5" />
-            </div>
-            <CardTitle class="text-sm font-bold text-foreground">Manajemen Dokumen E-RM</CardTitle>
-            <CardDescription class="text-xs text-muted-foreground">
-              Penerbitan Surat Keterangan Kematian Rawat Inap & Lembar Konsultasi Dokter Spesialis.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="pt-0">
-            <span class="text-xs font-bold text-primary flex items-center gap-1">Buka Dokumen Pasien →</span>
-          </CardContent>
-        </Card>
-
         <Card class="glass-panel border-border hover:border-amber-500/40 transition-all cursor-pointer" @click="navigateToNav('inbox')">
           <CardHeader class="pb-2">
             <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-2">
               <Inbox class="w-5 h-5" />
             </div>
-            <CardTitle class="text-sm font-bold text-foreground">Inbox TTE Dokter</CardTitle>
+            <CardTitle class="text-sm font-bold text-foreground">Inbox TTE</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
-              {{ pendingInboxCount }} berkas pasien menunggu otorisasi tanda tangan elektronik Anda.
+              {{ pendingInboxCount }} berkas/data dari E-RM yang belum di-TTE dan menunggu tanda tangan Anda.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
-            <span class="text-xs font-bold text-amber-500 flex items-center gap-1">Buka Inbox TTE Dokter →</span>
+            <span class="text-xs font-bold text-amber-500 flex items-center gap-1">Buka Inbox TTE →</span>
           </CardContent>
         </Card>
 
-        <Card class="glass-panel border-border hover:border-emerald-500/40 transition-all cursor-pointer" @click="navigateToNav('list')">
+        <Card class="glass-panel border-border hover:border-emerald-500/40 transition-all cursor-pointer" @click="navigateToNav('dokumen')">
           <CardHeader class="pb-2">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2">
-              <Archive class="w-5 h-5" />
+              <FileText class="w-5 h-5" />
             </div>
-            <CardTitle class="text-sm font-bold text-foreground">Arsip & Validasi Integritas</CardTitle>
+            <CardTitle class="text-sm font-bold text-foreground">Dokumen (Sudah TTE)</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
-              Riwayat dokumen resmi tersertifikasi BSrE dan audit trail kepatuhan hukum.
+              Seluruh dokumen yang sudah memiliki PDF & TTE BSrE resmi, lengkap dengan fitur versioning & verifikasi.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
-            <span class="text-xs font-bold text-emerald-500 flex items-center gap-1">Buka Arsip Dokumen →</span>
+            <span class="text-xs font-bold text-emerald-500 flex items-center gap-1">Buka Dokumen Sah →</span>
+          </CardContent>
+        </Card>
+
+        <Card class="glass-panel border-border hover:border-primary/40 transition-all cursor-pointer" @click="navigateToNav('vector')">
+          <CardHeader class="pb-2">
+            <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
+              <Archive class="w-5 h-5" />
+            </div>
+            <CardTitle class="text-sm font-bold text-foreground">Pencarian Semantik AI</CardTitle>
+            <CardDescription class="text-xs text-muted-foreground">
+              Pencarian cerdas isi dokumen rekam medis yang telah tersertifikasi menggunakan pgvector.
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <span class="text-xs font-bold text-primary flex items-center gap-1">Buka Pencarian AI →</span>
           </CardContent>
         </Card>
       </div>
     </div>
 
     <!-- ===================================================================== -->
-    <!-- 2. TAMPILAN KHUSUS MENU: DOKUMEN                                      -->
-    <!-- HANYA Dokumen Surat Kematian Ranap                                    -->
-    <!-- ===================================================================== -->
-    <div v-else-if="currentNav === 'dokumen'" class="space-y-4">
-      <SuratKematianRanapWidget
-        @document-created="onDocumentCreated"
-        @view-generated="openViewer"
-      />
-    </div>
-
-    <!-- ===================================================================== -->
-    <!-- 3. TAMPILAN KHUSUS MENU: INBOX TTE DOKTER                             -->
-    <!-- Langsung fokus ke antrean tanda tangan tanpa elemen dashboard         -->
+    <!-- 2. TAMPILAN KHUSUS MENU: INBOX TTE (DOKUMEN BELUM DI-TTE)             -->
     <!-- ===================================================================== -->
     <div v-else-if="currentNav === 'inbox'" class="space-y-4">
       <PendingTteInbox
@@ -187,9 +175,9 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- 4. TAMPILAN KHUSUS MENU: ARSIP DOKUMEN & AUDIT TRAIL                  -->
+    <!-- 3. TAMPILAN KHUSUS MENU: DOKUMEN (SUDAH ADA PDF & SUDAH DI-TTE)       -->
     <!-- ===================================================================== -->
-    <div v-else-if="currentNav === 'list'" class="space-y-4">
+    <div v-else-if="currentNav === 'dokumen'" class="space-y-4">
       <DocumentList
         ref="docListRef"
         :user-role="currentUser?.role || 'dokter'"
@@ -304,7 +292,6 @@ import {
 } from 'lucide-vue-next'
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
-import SuratKematianRanapWidget from '@/widgets/SuratKematianRanapWidget.vue'
 import DocumentList from '@/widgets/DocumentList.vue'
 import DocumentViewer from '@/widgets/DocumentViewer.vue'
 
