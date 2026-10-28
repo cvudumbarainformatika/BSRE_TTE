@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Archive & TTE BSrE Verification System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bsre: {
+                            blue: '#00f0ff',
+                            emerald: '#00ff9d',
+                            dark: '#0a0f1d',
+                            card: '#111827',
+                            border: '#1f293d',
+                            accent: '#3b82f6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #060913;
+            color: #f3f4f6;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .glass-panel-glow {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.08);
+        }
+
+        .neon-border {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0f1d;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f293d;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+
+        /* Interactive Stamp Dragging Area */
+        .pdf-page-sim {
+            background: #ffffff;
+            color: #111;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex bg-[#060913] text-gray-200">
+
+    <!-- SIDEBAR NAV -->
+    <aside class="w-64 glass-panel border-r border-gray-800 flex flex-col justify-between z-20 shrink-0">
+        <div>
+            <!-- Logo & Brand Header -->
+            <div class="p-5 flex items-center space-x-3 border-b border-gray-800/60">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-wide text-white flex items-center gap-1.5">
+                        E-ARCHIVE <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">BSrE</span>
+                    </h1>
+                    <p class="text-[10px] text-gray-400 tracking-wider uppercase font-mono">BSSN Verified TTE</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="p-4 space-y-1.5">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <i class="fa-solid fa-chart-pie w-5"></i>
+                    <span>Dashboard Overview</span>
+                </button>
+
+                <button onclick="switchTab('upload')" id="nav-upload" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all duration-200">
+                    <i class="fa-solid fa-file-signature w-5"></i>
+                    <span>Upload & TTE Sign</span>
+                </button>
+
+                <button onclick="switchTab('archive')" id="nav-archive" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all duration-200">
+                    <i class="fa-solid fa-folder-tree w-5"></i>
+                    <span>Arsip Dokumen</span>
+                </button>
+
+                <button onclick="switchTab('audit')" id="nav-audit" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all duration-200">
+                    <i class="fa-solid fa-receipt w-5"></i>
+                    <span>Log Audit & Verifikasi</span>
+                </button>
+
+                <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all duration-200">
+                    <i class="fa-solid fa-key w-5"></i>
+                    <span>Pengaturan Sertifikat</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- BSrE Status Badge at Bottom Sidebar -->
+        <div class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/20 bg-emerald-500/5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    BSrE Service Connected
+                </span>
+                <i class="fa-solid fa-link text-emerald-400 text-xs"></i>
+            </div>
+            <p class="text-[11px] text-gray-400">ID Sertifikat: <span class="font-mono text-gray-300">BSRE-9921-X4</span></p>
+            <p class="text-[10px] text-gray-500 mt-1">Expired: 14 Nov 2027</p>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        
+        <!-- HEADER TOP BAR -->
+        <header class="h-16 glass-panel border-b border-gray-800/70 px-6 flex items-center justify-between z-10">
+            <!-- Search Bar -->
+            <div class="relative w-80">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" placeholder="Cari nomor surat, hash, perihal..." class="w-full bg-gray-900/60 border border-gray-800 rounded-lg pl-9 pr-4 py-1.5 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 text-gray-200 placeholder-gray-500">
+            </div>
+
+            <!-- Right Profile & Security Quick Status -->
+            <div class="flex items-center space-x-4">
+                <button class="relative p-2 text-gray-400 hover:text-cyan-400 transition-colors">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400"></span>
+                </button>
+
+                <div class="h-6 w-px bg-gray-800"></div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white">
+                        DR
+                    </div>
+                    <div class="text-left hidden sm:block">
+                        <div class="text-xs font-medium text-white">Dr. Hendra Wijaya</div>
+                        <div class="text-[10px] text-gray-400">Kepala Bagian Kepegawaian</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- DYNAMIC TAB CONTENT CONTAINER -->
+        <main class="flex-1 overflow-y-auto p-6 space-y-6">
+
+            <!-- TAB 1: DASHBOARD OVERVIEW -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Welcome Banner -->
+                <div class="relative p-6 rounded-2xl glass-panel-glow overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="z-10">
+                        <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">BSSN Certified Environment</span>
+                        <h2 class="text-2xl font-bold text-white mt-2">Sistem Pengarsipan & Verifikasi Dokumen TTE</h2>
+                        <p class="text-sm text-gray-400 mt-1">Mengelola kerahasiaan, keabsahan hukum, dan integritas berkas elektronik instansi.</p>
+                    </div>
+                    <button onclick="switchTab('upload')" class="z-10 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-semibold text-sm hover:shadow-lg hover:shadow-cyan-500/25 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-pen-nib"></i>
+                        <span>Tanda Tangani PDF</span>
+                    </button>
+                    <!-- Background Glow Decor -->
+                    <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-cyan-500/10 rounded-full blur-3xl"></div>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Card 1 -->
+                    <div class="p-5 rounded-2xl glass-panel border-gray-800 hover:border-cyan-500/30 transition-all">
+                        <div class="flex items-center justify-between text-gray-400">
+                            <span class="text-xs font-medium uppercase tracking-wider">Total Dokumen TTE</span>
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
+                                <i class="fa-solid fa-file-shield"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <span class="text-2xl font-bold text-white font-mono">1,842</span>
+                            <span class="text-xs text-emerald-400 font-medium flex items-center gap-1"><i class="fa-solid fa-arrow-up"></i> +12%</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">Terdaftar di server BSrE</p>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="p-5 rounded-2xl glass-panel border-gray-800 hover:border-emerald-500/30 transition-all">
+                        <div class="flex items-center justify-between text-gray-400">
+                            <span class="text-xs font-medium uppercase tracking-wider">Verifikasi Sah (Valid)</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <span class="text-2xl font-bold text-white font-mono">1,839</span>
+                            <span class="text-xs text-emerald-400 font-medium font-mono">99.8%</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">3 berkas dalam revisi TTE</p>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="p-5 rounded-2xl glass-panel border-gray-800 hover:border-amber-500/30 transition-all">
+                        <div class="flex items-center justify-between text-gray-400">
+                            <span class="text-xs font-medium uppercase tracking-wider">Pending TTE</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <span class="text-2xl font-bold text-white font-mono">5</span>
+                            <span class="text-xs text-amber-400 font-medium">Membutuhkan Paraf</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">Antrean penandatanganan</p>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="p-5 rounded-2xl glass-panel border-gray-800 hover:border-blue-500/30 transition-all">
+                        <div class="flex items-center justify-between text-gray-400">
+                            <span class="text-xs font-medium uppercase tracking-wider">Sertifikat Digital P12</span>
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                                <i class="fa-solid fa-key"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <span class="text-2xl font-bold text-white">Aktif</span>
+                            <span class="text-xs text-blue-400 font-mono">RSA 2048-bit</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">BSrE BSSN CA Valid</p>
+                    </div>
+                </div>
+
+                <!-- Visual Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Chart 1: Activity -->
+                    <div class="lg:col-span-2 p-5 rounded-2xl glass-panel">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-sm text-white">Statistik Penandatanganan Dokumen TTE</h3>
+                                <p class="text-xs text-gray-400">Aktivitas bulanan pembuatan & verifikasi stempel digital</p>
+                            </div>
+                            <select class="bg-gray-900 border border-gray-800 text-xs rounded-lg px-2.5 py-1 text-gray-300">
+                                <option>Tahun 2026</option>
+                                <option>Tahun 2025</option>
+                            </select>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="tteChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Category Distribution & Storage -->
+                    <div class="p-5 rounded-2xl glass-panel flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-semibold text-sm text-white mb-1">Distribusi Kategori Dokumen</h3>
+                            <p class="text-xs text-gray-400 mb-4">Persentase jenis berkas terarsip</p>
+                            <div class="h-44 flex justify-center">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-800/80">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-gray-400">Kapasitas Cloud Storage BSrE</span>
+                                <span class="text-cyan-400 font-mono">142.8 GB / 500 GB</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full" style="width: 28%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: UPLOAD & TTE SIGN SIMULATOR -->
+            <div id="tab-upload" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Upload & Penandatanganan TTE PDF</h2>
+                        <p class="text-xs text-gray-400">Unggah berkas PDF, atur metadata, dan posisikan QR Stempel Sertifikat BSrE secara presisi.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left Form Panel -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <!-- Dropzone -->
+                        <div class="border-2 border-dashed border-gray-700 hover:border-cyan-500/50 rounded-2xl p-6 text-center glass-panel transition-colors cursor-pointer group">
+                            <div class="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                            </div>
+                            <p class="text-sm font-medium text-white">Drag & Drop file PDF di sini</p>
+                            <p class="text-xs text-gray-500 mt-1">Maksimal ukuran file: 25 MB (.pdf standard)</p>
+                            <button class="mt-4 px-4 py-1.5 rounded-lg bg-gray-800 text-xs font-medium text-gray-300 hover:bg-gray-700 transition-colors">Pilih File PDF</button>
+                        </div>
+
+                        <!-- Form Metadata -->
+                        <div class="glass-panel p-5 rounded-2xl space-y-4">
+                            <h3 class="text-sm font-semibold text-white border-b border-gray-800 pb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-cyan-400"></i> Metadata & Passphrase TTE
+                            </h3>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Nomor Surat / Dokumen</label>
+                                <input type="text" value="800/1249/BKPSDM/2026" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Perihal Dokumen</label>
+                                <input type="text" value="Surat Keputusan Kenaikan Pangkat Periode April 2026" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-400 mb-1">Kategori Dokumen</label>
+                                    <select class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                                        <option>Surat Keputusan (SK)</option>
+                                        <option>Surat Dinas</option>
+                                        <option>Surat Keterangan</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-400 mb-1">Tipe Stempel Visual</label>
+                                    <select id="stampType" onchange="updateStampPreview()" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                                        <option value="qr">QR Code Only</option>
+                                        <option value="full">QR Code + TTD Visual</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Passphrase Sertifikat BSrE (P12)</label>
+                                <input type="password" placeholder="Masukkan Passphrase Keamanan Anda" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <button onclick="triggerSigningProcess()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-bold text-sm hover:shadow-lg hover:shadow-cyan-500/20 transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-signature"></i>
+                                <span>Proses & Tanda Tangani Dokumen</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Visual Simulator Canvas -->
+                    <div class="lg:col-span-7 glass-panel p-5 rounded-2xl flex flex-col">
+                        <div class="flex items-center justify-between pb-3 border-b border-gray-800 mb-4">
+                            <span class="text-xs font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-eye text-cyan-400"></i> Interactive PDF Layout Viewer (Halaman 1/1)
+                            </span>
+                            <span class="text-[11px] text-gray-400 font-mono">Geser Posisi Stempel QR ke Lokasi Yang Diinginkan</span>
+                        </div>
+                        
+                        <!-- PDF Container Paper Simulation -->
+                        <div class="flex-1 bg-gray-950/80 rounded-xl p-4 overflow-auto flex justify-center items-center min-h-[420px]">
+                            <div class="pdf-page-sim relative w-[340px] h-[460px] rounded p-6 text-[10px] leading-relaxed flex flex-col justify-between">
+                                <!-- Mock Document Content -->
+                                <div class="space-y-3">
+                                    <div class="text-center font-bold border-b-2 border-slate-800 pb-2">
+                                        <p class="text-[11px] font-serif uppercase">PEMERINTAH REPUBLIK INDONESIA</p>
+                                        <p class="text-[9px]">BADAN SIBER DAN SANDI NEGARA</p>
+                                    </div>
+                                    <p class="font-bold text-center underline text-[10px]">SURAT KEPUTUSAN OFFICIAL</p>
+                                    <p class="text-[9px]">Menimbang bahwa dalam rangka meningkatkan integritas keamanan informasi, dipandang perlu menerbitkan Tanda Tangan Elektronik terverifikasi...</p>
+                                    <p class="text-[9px]">Memutuskan: Menetapakan Surat Keputusan Resmi untuk digunakan sebagaimana mestinya.</p>
+                                </div>
+
+                                <!-- Signature Position Area -->
+                                <div class="flex justify-between items-end">
+                                    <div class="text-[8px] text-gray-500">
+                                        <p>Dicetak secara elektronik</p>
+                                        <p>Jakarta, 28 Oktober 2026</p>
+                                    </div>
+
+                                    <!-- Draggable Stamp Overlay Box -->
+                                    <div id="stampBox" class="border border-dashed border-cyan-500 bg-cyan-500/10 p-1.5 rounded cursor-move hover:scale-105 transition-transform">
+                                        <div id="stampContent" class="flex items-center gap-1.5">
+                                            <div class="w-9 h-9 bg-slate-900 rounded flex items-center justify-center p-0.5 border border-slate-700">
+                                                <!-- Mock QR Code visual -->
+                                                <i class="fa-solid fa-qrcode text-cyan-400 text-xl"></i>
+                                            </div>
+                                            <div class="text-[7px] text-slate-800 font-mono leading-none">
+                                                <p class="font-bold">BSrE BSSN</p>
+                                                <p class="text-[6px] text-slate-600">Signed Digitally</p>
+                                                <p class="text-[6px] text-cyan-700">ID: #9921-X4</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: ARSIP DOKUMEN TABLE GRID -->
+            <div id="tab-archive" class="tab-content hidden space-y-6">
+                <!-- Archive Filters -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 glass-panel p-4 rounded-2xl">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <select class="bg-gray-900 border border-gray-800 text-xs rounded-xl px-3 py-2 text-gray-300 focus:outline-none focus:border-cyan-500">
+                            <option>Semua Kategori</option>
+                            <option>Surat Keputusan (SK)</option>
+                            <option>Surat Dinas</option>
+                            <option>Surat Keterangan</option>
+                        </select>
+                        <select class="bg-gray-900 border border-gray-800 text-xs rounded-xl px-3 py-2 text-gray-300 focus:outline-none focus:border-cyan-500">
+                            <option>Status: Semua</option>
+                            <option>Terverifikasi BSrE</option>
+                            <option>Pending TTE</option>
+                            <option>Revoked / Canceled</option>
+                        </select>
+                        <input type="date" class="bg-gray-900 border border-gray-800 text-xs rounded-xl px-3 py-2 text-gray-300 focus:outline-none focus:border-cyan-500">
+                    </div>
+
+                    <div class="text-xs text-gray-400 font-mono">
+                        Menampilkan <span class="text-cyan-400 font-bold">5</span> dari 1,842 Dokumen
+                    </div>
+                </div>
+
+                <!-- Documents Data Table -->
+                <div class="glass-panel rounded-2xl overflow-hidden border border-gray-800">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-900/80 text-gray-400 border-b border-gray-800 uppercase font-mono text-[10px]">
+                                <tr>
+                                    <th class="py-3.5 px-4">Dokumen & Nomor</th>
+                                    <th class="py-3.5 px-4">Kategori</th>
+                                    <th class="py-3.5 px-4">Tanggal TTE</th>
+                                    <th class="py-3.5 px-4">Penandatangan</th>
+                                    <th class="py-3.5 px-4">Status BSrE</th>
+                                    <th class="py-3.5 px-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-800/60 font-sans">
+                                <!-- Row 1 -->
+                                <tr class="hover:bg-gray-800/30 transition-colors">
+                                    <td class="py-4 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold shrink-0">
+                                                <i class="fa-solid fa-file-pdf text-base"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-white">SK Kenaikan Pangkat Golongan IV</div>
+                                                <div class="text-[10px] text-gray-400 font-mono">800/1249/BKPSDM/2026</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-gray-300">Surat Keputusan</td>
+                                    <td class="py-4 px-4 font-mono text-gray-400">28 Oct 2026, 09:15</td>
+                                    <td class="py-4 px-4">
+                                        <span class="text-gray-200">Dr. Hendra Wijaya</span>
+                                        <span class="block text-[10px] text-gray-500 font-mono">NIP: 198203102005011002</span>
+                                    </td>
+                                    <td class="py-4 px-4">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 w-max">
+                                            <i class="fa-solid fa-circle-check"></i> Terverifikasi BSrE
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <button onclick="openVerificationModal('SK Kenaikan Pangkat', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')" title="Verifikasi Sertifikat" class="p-2 rounded-lg bg-gray-800 hover:bg-cyan-500/20 text-gray-300 hover:text-cyan-400 transition-colors">
+                                                <i class="fa-solid fa-certificate"></i>
+                                            </button>
+                                            <button title="Download PDF" class="p-2 rounded-lg bg-gray-800 hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 transition-colors">
+                                                <i class="fa-solid fa-download"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Row 2 -->
+                                <tr class="hover:bg-gray-800/30 transition-colors">
+                                    <td class="py-4 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold shrink-0">
+                                                <i class="fa-solid fa-file-pdf text-base"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-white">Surat Tugas Pengawasan Keamanan Cyber</div>
+                                                <div class="text-[10px] text-gray-400 font-mono">090/441/ST/BSSN/2026</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-gray-300">Surat Dinas</td>
+                                    <td class="py-4 px-4 font-mono text-gray-400">27 Oct 2026, 14:20</td>
+                                    <td class="py-4 px-4">
+                                        <span class="text-gray-200">Ir. Budi Santoso</span>
+                                        <span class="block text-[10px] text-gray-500 font-mono">NIP: 197804122003121001</span>
+                                    </td>
+                                    <td class="py-4 px-4">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 w-max">
+                                            <i class="fa-solid fa-circle-check"></i> Terverifikasi BSrE
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <button onclick="openVerificationModal('Surat Tugas Pengawasan', '7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069')" class="p-2 rounded-lg bg-gray-800 hover:bg-cyan-500/20 text-gray-300 hover:text-cyan-400 transition-colors">
+                                                <i class="fa-solid fa-certificate"></i>
+                                            </button>
+                                            <button title="Download PDF" class="p-2 rounded-lg bg-gray-800 hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 transition-colors">
+                                                <i class="fa-solid fa-download"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Row 3 -->
+                                <tr class="hover:bg-gray-800/30 transition-colors">
+                                    <td class="py-4 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold shrink-0">
+                                                <i class="fa-solid fa-file-pdf text-base"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-white">Nota Kesepahaman Antar Lembaga</div>
+                                                <div class="text-[10px] text-gray-400 font-mono">112/MOU/2026</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-gray-300">Surat Keterangan</td>
+                                    <td class="py-4 px-4 font-mono text-gray-400">-</td>
+                                    <td class="py-4 px-4">
+                                        <span class="text-gray-200">Dr. Hendra Wijaya</span>
+                                    </td>
+                                    <td class="py-4 px-4">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5 w-max">
+                                            <i class="fa-solid fa-hourglass-half"></i> Pending Passphrase TTE
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <button onclick="switchTab('upload')" title="Proses TTE" class="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[11px] hover:bg-cyan-500/30">Sign Now</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: AUDIT LOGS -->
+            <div id="tab-audit" class="tab-content hidden space-y-6">
+                <div class="glass-panel p-5 rounded-2xl">
+                    <h3 class="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-virus text-cyan-400"></i> Log Audit Aktivitas TTE & Hash Integrity Check
+                    </h3>
+                    <div class="space-y-4">
+                        <!-- Audit Item 1 -->
+                        <div class="p-3.5 rounded-xl bg-gray-900/60 border border-gray-800 flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-signature"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <h4 class="text-xs font-semibold text-white">Tanda Tangan Digital Berhasil Diterapkan</h4>
+                                    <span class="text-[10px] font-mono text-gray-400">28 Oct 2026 - 09:15:22 WIB</span>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5">Dokumen SK Kenaikan Pangkat Golongan IV berhasil ditandatangani menggunakan sertifikat BSrE.</p>
+                                <div class="mt-2 font-mono text-[10px] text-gray-500 bg-gray-950 p-2 rounded border border-gray-800/80 overflow-x-auto">
+                                    SHA-256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audit Item 2 -->
+                        <div class="p-3.5 rounded-xl bg-gray-900/60 border border-gray-800 flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-qrcode"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <h4 class="text-xs font-semibold text-white">Verifikasi QR Code Publik Dipanggil</h4>
+                                    <span class="text-[10px] font-mono text-gray-400">27 Oct 2026 - 16:04:11 WIB</span>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5">Seseorang memindai QR code verifikasi via portal verification.bsre.bssn.go.id.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: CERTIFICATE SETTINGS -->
+            <div id="tab-settings" class="tab-content hidden space-y-6">
+                <div class="max-w-3xl mx-auto glass-panel p-6 rounded-2xl space-y-6">
+                    <h3 class="text-lg font-semibold text-white border-b border-gray-800 pb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-id-card text-cyan-400"></i> Pengaturan Sertifikat Digital BSrE (P12/PFX)
+                    </h3>
+
+                    <div class="space-y-4">
+                        <div class="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-award"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-semibold text-white">Status Otoritas Sertifikat (CA)</h4>
+                                    <p class="text-xs text-gray-400">Balai Sertifikasi Elektronik - BSSN Indonesia</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Terverifikasi Active</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">Nama Pemilik Sertifikat (Subject)</label>
+                                <input type="text" value="Dr. Hendra Wijaya" readonly class="w-full bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400 mb-1">NIP / NIK Pemilik</label>
+                                <input type="text" value="198203102005011002" readonly class="w-full bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400 font-mono">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Update Password / Passphrase Sertifikat P12</label>
+                            <input type="password" placeholder="Passphrase Baru" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-cyan-500">
+                        </div>
+
+                        <div class="pt-4 flex justify-end">
+                            <button class="px-5 py-2 rounded-xl bg-cyan-500 text-slate-950 font-semibold text-xs hover:bg-cyan-400 transition-colors">Simpan Konfigurasi</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: VERIFIKASI KEASLIAN BSRE BSSN -->
+    <div id="verificationModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden justify-center items-center z-50 p-4">
+        <div class="glass-panel-glow max-w-xl w-full rounded-2xl p-6 border border-cyan-500/30 shadow-2xl relative animate-fade-in">
+            <!-- Close Button -->
+            <button onclick="closeVerificationModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Modal Header -->
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-shield-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-white">Hasil Verifikasi Keaslian BSrE</h3>
+                    <p class="text-xs text-emerald-400 font-medium">Tanda Tangan Elektronik Sah & Tidak Mengalami Perubahan</p>
+                </div>
+            </div>
+
+            <!-- Detailed Certificate Data Grid -->
+            <div class="space-y-3 font-mono text-xs">
+                <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-1.5">
+                    <div class="text-[10px] text-gray-500 uppercase">Nama Dokumen</div>
+                    <div id="modalDocTitle" class="text-white font-sans font-semibold">SK Kenaikan Pangkat Golongan IV</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
+                        <div class="text-[10px] text-gray-500 uppercase">Penerbit Sertifikat (Issuer)</div>
+                        <div class="text-cyan-400 mt-1">BSrE BSSN CA v2</div>
+                    </div>
+                    <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
+                        <div class="text-[10px] text-gray-500 uppercase">Timestamping (TSA)</div>
+                        <div class="text-gray-300 mt-1">28 Oct 2026, 09:15 GMT+7</div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 space-y-1">
+                    <div class="text-[10px] text-gray-500 uppercase">Dokumen Cryptographic Hash (SHA-256)</div>
+                    <div id="modalDocHash" class="text-[11px] text-emerald-400 break-all">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</div>
+                </div>
+
+                <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] text-gray-500 uppercase">Status Revokasi Sertifikat (OCSP)</div>
+                        <div class="text-emerald-400 font-semibold mt-0.5">GOOD (Tidak Dicabut)</div>
+                    </div>
+                    <i class="fa-solid fa-lock text-cyan-400 text-lg"></i>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeVerificationModal()" class="px-5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors">Tutup Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            // Show selected tab
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            // Update nav active states
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-cyan-500/10', 'text-cyan-400', 'border', 'border-cyan-500/20');
+                btn.classList.add('text-gray-400');
+            });
+
+            const activeBtn = document.getElementById('nav-' + tabId);
+            activeBtn.classList.add('active', 'bg-cyan-500/10', 'text-cyan-400', 'border', 'border-cyan-500/20');
+            activeBtn.classList.remove('text-gray-400');
+        }
+
+        // Verification Modal Control
+        function openVerificationModal(title, hash) {
+            document.getElementById('modalDocTitle').innerText = title;
+            document.getElementById('modalDocHash').innerText = hash;
+            document.getElementById('verificationModal').classList.remove('hidden');
+            document.getElementById('verificationModal').classList.add('flex');
+        }
+
+        function closeVerificationModal() {
+            document.getElementById('verificationModal').classList.add('hidden');
+            document.getElementById('verificationModal').classList.remove('flex');
+        }
+
+        // Simulation Signing Process
+        function triggerSigningProcess() {
+            alert("Dokumen berhasil ditandatangani secara digital dengan Sertifikat BSrE BSSN!");
+            switchTab('archive');
+        }
+
+        // Draggable Stamp Simulation
+        const stamp = document.getElementById('stampBox');
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        if (stamp) {
+            stamp.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - stamp.offsetLeft;
+                offsetY = e.clientY - stamp.offsetTop;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    stamp.style.left = `${e.clientX - offsetX}px`;
+                    stamp.style.top = `${e.clientY - offsetY}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        }
+
+        // Render Charts using Chart.js on window load
+        window.onload = function() {
+            // Line Chart: Activity
+            const ctx1 = document.getElementById('tteChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt'],
+                    datasets: [{
+                        label: 'Dokumen Ditandatangani TTE',
+                        data: [120, 150, 180, 140, 210, 250, 230, 280, 310, 340],
+                        borderColor: '#00f0ff',
+                        backgroundColor: 'rgba(0, 240, 255, 0.05)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // Doughnut Chart: Categories
+            const ctx2 = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['SK', 'Surat Dinas', 'Surat Keterangan', 'Lainnya'],
+                    datasets: [{
+                        data: [45, 30, 15, 10],
+                        backgroundColor: ['#00f0ff', '#00ff9d', '#3b82f6', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', boxWidth: 10, font: { size: 10 } } } }
+                }
+            });
+        };
+    </script>
+</body>
+</html>

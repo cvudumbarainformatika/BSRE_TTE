@@ -1,0 +1,17 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: front-antrian-nginx
+    restart: unless-stopped
+    ports:
+      - "9095:80"
+    volumes:
+      - ./dist/spa:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../antrian_online_laravel/storage/app/public:/data/storage:ro
+    networks:
+      - lara-network
+
+networks:
+  lara-network:
+    external: true

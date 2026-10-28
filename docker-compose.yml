@@ -1,0 +1,60 @@
+services:
+  # Database PostgreSQL 16 + pgvector Extension
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: simrs_tte_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-simrs_tte}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ClamAV Antivirus Daemon (Didukung di Mac via platform linux/amd64 emulasi)
+  clamav:
+    image: clamav/clamav:latest
+    platform: linux/amd64
+    container_name: simrs_tte_clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+
+  # Backend FastAPI Microservice (Python 3.11 + TTE BSRE Engine)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: simrs_tte_backend
+    restart: unless-stopped
+    ports:
+      - "8005:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Frontend Quasar Vite + Tailwind (Modular Widgets)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: simrs_tte_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
