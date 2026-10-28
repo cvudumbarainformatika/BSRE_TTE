@@ -1,33 +1,111 @@
 <template>
-  <div class="space-y-6">
-    <!-- Hero / Status Banner Menggunakan Komponen Modular Card & Badge -->
-    <Card class="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-800 border-none text-white shadow-md">
-      <CardContent class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <Badge class="bg-blue-500/30 text-blue-100 border border-blue-400/30 mb-2">
-            SIMRS MySQL Read-Only Sync & Batch TTE BSrE Active
-          </Badge>
-          <h2 class="text-xl md:text-2xl font-black tracking-tight">
-            Layanan Dokumen & TTE BSrE (Otomatisasi SIMRS)
-          </h2>
-          <p class="text-xs md:text-sm text-blue-100/85 mt-1 max-w-2xl leading-relaxed">
-            Dokumen SIMRS (Surat Keterangan Kematian Ranap, Lembar Konsultasi, Resume Medis) ditarik otomatis melalui koneksi <strong>MySQL Read-Only (SELECT-only)</strong> ke Signature Inbox tanpa mengubah kode SIMRS.
-          </p>
-        </div>
+  <AppPage :loading="isPageLoading">
+    <!-- Banner Sambutan Futuristik (Glassmorphism Glow dari ui-mantap.html) -->
+    <div class="relative p-6 rounded-2xl glass-panel-glow overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="z-10">
+        <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">
+          BSSN Certified Environment • BSrE Cloud Sync
+        </span>
+        <h2 class="text-xl sm:text-2xl font-bold text-foreground mt-2">
+          Sistem Pengarsipan & Verifikasi Dokumen TTE BSrE
+        </h2>
+        <p class="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+          Mengelola keabsahan hukum, integritas berkas elektronik instansi, dan sinkronisasi otomatis SIMRS via koneksi <strong>MySQL Read-Only (SELECT-only)</strong>.
+        </p>
+      </div>
+      <div class="z-10 flex items-center gap-3">
+        <Button
+          class="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-semibold text-xs sm:text-sm shadow-md hover:shadow-cyan-500/20 gap-2 h-10 px-4"
+          @click="selectTab('inbox')"
+        >
+          <FileSignature class="w-4 h-4" />
+          <span>Tanda Tangani Batch TTE ({{ pendingInboxCount }})</span>
+        </Button>
+      </div>
+      <!-- Background Glow Decor -->
+      <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+    </div>
 
-        <div class="text-right hidden sm:block">
-          <div class="text-[11px] text-emerald-300 uppercase font-bold">Penandatangan Aktif</div>
-          <div class="text-sm font-bold">{{ currentUser?.nama }}</div>
-          <div class="text-[11px] text-blue-100">Sertifikat Elektronik BSrE BSSN Terhubung</div>
-        </div>
-      </CardContent>
-    </Card>
+    <!-- 4 Stat Cards Futuristik (ui-mantap.html) Menggunakan Komponen Modular Card & Badge -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card 1: Total Dokumen TTE -->
+      <Card class="glass-panel hover:border-primary/40 transition-all border-border shadow-xs">
+        <CardContent class="p-5">
+          <div class="flex items-center justify-between text-muted-foreground">
+            <span class="text-xs font-medium uppercase tracking-wider">Total Dokumen TTE</span>
+            <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <FileCheck class="w-4 h-4" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline justify-between">
+            <span class="text-2xl font-bold text-foreground font-mono">1,842</span>
+            <Badge variant="outline" class="text-[11px] text-emerald-500 border-emerald-500/30 font-medium flex items-center gap-1">
+              <ArrowUpRight class="w-3 h-3" /> +12%
+            </Badge>
+          </div>
+          <p class="text-[11px] text-muted-foreground mt-1">Terdaftar di server BSrE BSSN</p>
+        </CardContent>
+      </Card>
+
+      <!-- Card 2: Verifikasi Sah -->
+      <Card class="glass-panel hover:border-emerald-500/40 transition-all border-border shadow-xs">
+        <CardContent class="p-5">
+          <div class="flex items-center justify-between text-muted-foreground">
+            <span class="text-xs font-medium uppercase tracking-wider">Verifikasi Sah (Valid)</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <CheckCircle2 class="w-4 h-4" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline justify-between">
+            <span class="text-2xl font-bold text-foreground font-mono">1,839</span>
+            <span class="text-xs text-emerald-400 font-medium font-mono">99.8%</span>
+          </div>
+          <p class="text-[11px] text-muted-foreground mt-1">Integritas hash SHA-256 terjaga</p>
+        </CardContent>
+      </Card>
+
+      <!-- Card 3: Pending TTE -->
+      <Card class="glass-panel hover:border-amber-500/40 transition-all border-border shadow-xs cursor-pointer" @click="selectTab('inbox')">
+        <CardContent class="p-5">
+          <div class="flex items-center justify-between text-muted-foreground">
+            <span class="text-xs font-medium uppercase tracking-wider">Pending TTE</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Clock class="w-4 h-4" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline justify-between">
+            <span class="text-2xl font-bold text-foreground font-mono">{{ pendingInboxCount }}</span>
+            <Badge variant="outline" class="text-[11px] border-amber-500/30 text-amber-500 font-medium">
+              Membutuhkan Paraf
+            </Badge>
+          </div>
+          <p class="text-[11px] text-muted-foreground mt-1">Antrean tanda tangan elektronik</p>
+        </CardContent>
+      </Card>
+
+      <!-- Card 4: Sertifikat Digital P12 -->
+      <Card class="glass-panel hover:border-blue-500/40 transition-all border-border shadow-xs">
+        <CardContent class="p-5">
+          <div class="flex items-center justify-between text-muted-foreground">
+            <span class="text-xs font-medium uppercase tracking-wider">Sertifikat Digital P12</span>
+            <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+              <Key class="w-4 h-4" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline justify-between">
+            <span class="text-2xl font-bold text-foreground">Aktif</span>
+            <span class="text-xs text-primary font-mono font-semibold">RSA 2048-bit</span>
+          </div>
+          <p class="text-[11px] text-muted-foreground mt-1">BSrE BSSN CA Valid</p>
+        </CardContent>
+      </Card>
+    </div>
 
     <!-- Navigation Menggunakan Komponen Modular AppTabs -->
     <AppTabs
       :tabs="tabItems"
       :default-tab="currentTab"
-      @tab-change="(val) => (currentTab = val)"
+      @tab-change="onTabChanged"
     >
       <!-- TAB 1: SURAT KEMATIAN RANAP (PRIORITAS TTE) -->
       <template #kematian_ranap>
@@ -65,12 +143,12 @@
 
       <!-- TAB 5: PENCARIAN VEKTOR (PGVECTOR AI) -->
       <template #vector>
-        <Card class="border-slate-200 shadow-sm bg-white">
+        <Card class="glass-panel border-border shadow-sm">
           <CardHeader>
-            <CardTitle class="text-base font-bold text-slate-800">
+            <CardTitle class="text-base font-bold text-foreground">
               Pencarian Semantik Rekam Medis (PostgreSQL pgvector)
             </CardTitle>
-            <CardDescription class="text-xs text-slate-500">
+            <CardDescription class="text-xs text-muted-foreground">
               Cari dokumen rekam medis atau surat kematian berdasarkan kemiripan makna penyebab kematian, keluhan klinis, atau diagnosa menggunakan representasi vektor 1536-dimensi.
             </CardDescription>
           </CardHeader>
@@ -88,7 +166,7 @@
               </div>
               <div class="md:col-span-2">
                 <Button
-                  class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-9"
+                  class="w-full bg-primary text-primary-foreground text-xs font-bold h-9 rounded-xl"
                   :disabled="isSearchingVector"
                   @click="doVectorSearch"
                 >
@@ -98,28 +176,28 @@
             </div>
 
             <div v-if="vectorResults.length > 0" class="space-y-2 pt-2">
-              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hasil Kemiripan Vektor:</div>
+              <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hasil Kemiripan Vektor:</div>
               <Card
                 v-for="res in vectorResults"
                 :key="res.id"
-                class="bg-slate-50 hover:bg-indigo-50/60 border-slate-200 cursor-pointer transition-colors"
+                class="glass-panel hover:border-primary/40 border-border cursor-pointer transition-colors"
                 @click="openViewer(res)"
               >
                 <CardContent class="p-4 flex items-center justify-between">
                   <div>
-                    <div class="font-bold text-slate-800 text-sm">{{ res.title || res.filename }}</div>
-                    <div class="text-xs text-slate-500 mt-0.5">{{ res.description || 'Tanpa deskripsi' }}</div>
-                    <div class="text-[10px] text-slate-400 mt-1">
+                    <div class="font-bold text-foreground text-sm">{{ res.title || res.filename }}</div>
+                    <div class="text-xs text-muted-foreground mt-0.5">{{ res.description || 'Tanpa deskripsi' }}</div>
+                    <div class="text-[10px] text-muted-foreground mt-1">
                       Kunjungan #{{ res.kunjungan_id }} • Tipe: {{ res.document_type }} • Status TTE: {{ res.tte_status }}
                     </div>
                   </div>
-                  <Badge class="bg-indigo-100 text-indigo-700 font-bold text-xs">
+                  <Badge variant="outline" class="border-primary/40 text-primary font-bold text-xs">
                     Lihat PDF
                   </Badge>
                 </CardContent>
               </Card>
             </div>
-            <div v-else-if="hasSearchedVector" class="text-center py-8 text-xs text-slate-400">
+            <div v-else-if="hasSearchedVector" class="text-center py-8 text-xs text-muted-foreground">
               Tidak ditemukan dokumen yang cocok dengan vektor pencarian.
             </div>
           </CardContent>
@@ -143,18 +221,27 @@
         />
       </div>
     </AppDialog>
-  </div>
+  </AppPage>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { documentApi } from '@/services/api'
+import AppPage from '@/components/AppPage.vue'
 import AppTabs from '@/components/AppTabs.vue'
 import AppInput from '@/components/AppInput.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  FileCheck,
+  CheckCircle2,
+  Clock,
+  Key,
+  FileSignature,
+  ArrowUpRight
+} from 'lucide-vue-next'
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
 import SuratKematianRanapWidget from '@/widgets/SuratKematianRanapWidget.vue'
@@ -170,12 +257,17 @@ const props = defineProps({
   pendingCount: {
     type: Number,
     default: 0
+  },
+  activeNav: {
+    type: String,
+    default: 'kematian_ranap'
   }
 })
 
-const emit = defineEmits(['refresh-notifications'])
+const emit = defineEmits(['refresh-notifications', 'switch-tab'])
 
-const currentTab = ref('kematian_ranap')
+const isPageLoading = ref(false)
+const currentTab = ref(props.activeNav || 'kematian_ranap')
 const inboxRef = ref(null)
 const docListRef = ref(null)
 const selectedDoc = ref(null)
@@ -201,6 +293,25 @@ watch(
     pendingInboxCount.value = val
   }
 )
+
+watch(
+  () => props.activeNav,
+  (val) => {
+    if (val && val !== currentTab.value) {
+      currentTab.value = val
+    }
+  }
+)
+
+const selectTab = (tabVal) => {
+  currentTab.value = tabVal
+  emit('switch-tab', tabVal)
+}
+
+const onTabChanged = (val) => {
+  currentTab.value = val
+  emit('switch-tab', val)
+}
 
 const openViewer = (doc) => {
   selectedDoc.value = doc
@@ -240,17 +351,25 @@ const doVectorSearch = async () => {
 }
 
 const handleOpenInbox = () => {
-  currentTab.value = 'inbox'
+  selectTab('inbox')
   if (inboxRef.value) {
     inboxRef.value.loadPendingDocs()
   }
 }
 
+const handleNavTabChange = (e) => {
+  if (e.detail) {
+    currentTab.value = e.detail
+  }
+}
+
 onMounted(() => {
   window.addEventListener('open-inbox-tte', handleOpenInbox)
+  window.addEventListener('nav-tab-change', handleNavTabChange)
 })
 
 onUnmounted(() => {
   window.removeEventListener('open-inbox-tte', handleOpenInbox)
+  window.removeEventListener('nav-tab-change', handleNavTabChange)
 })
 </script>

@@ -47,10 +47,10 @@
         <div class="flex items-center gap-2.5">
           <Badge variant="destructive" class="font-bold text-[10px]">PDF</Badge>
           <div>
-            <div class="font-semibold text-xs text-slate-800 hover:text-blue-600">
+            <div class="font-semibold text-xs text-foreground hover:text-primary transition-colors">
               {{ item.title || item.filename }}
             </div>
-            <div class="text-[10px] text-slate-400 font-mono">{{ item.filename }}</div>
+            <div class="text-[10px] text-muted-foreground font-mono">{{ item.filename }}</div>
           </div>
         </div>
       </template>
@@ -61,7 +61,7 @@
           <Badge variant="secondary" class="text-[10px]">
             {{ formatType(item.document_type) }}
           </Badge>
-          <div class="text-[11px] text-slate-500 mt-0.5">
+          <div class="text-[11px] text-muted-foreground mt-0.5">
             Kunjungan #{{ item.kunjungan_id }} • RM #{{ item.pasien_id }}
           </div>
         </div>
@@ -72,18 +72,19 @@
         <div>
           <Badge
             v-if="item.tte_status === 'SIGNED_BSRE'"
-            class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold"
+            variant="outline"
+            class="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px] font-semibold"
           >
             ✓ TTE BSrE Terverifikasi
           </Badge>
           <Badge
             v-else
             variant="outline"
-            class="bg-amber-50 text-amber-700 border-amber-200 text-[11px]"
+            class="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[11px]"
           >
             ⏳ Belum TTE
           </Badge>
-          <div v-if="item.tte_signer_name" class="text-[10px] text-slate-400 mt-1">
+          <div v-if="item.tte_signer_name" class="text-[10px] text-muted-foreground mt-1">
             Oleh: {{ item.tte_signer_name }}
           </div>
         </div>
@@ -91,9 +92,9 @@
 
       <!-- Custom Cell: Waktu Buat -->
       <template #cell-uploaded_at="{ item }">
-        <div class="text-xs text-slate-600">
+        <div class="text-xs text-muted-foreground">
           <div>{{ formatDate(item.uploaded_at) }}</div>
-          <div class="text-[10px] text-slate-400">{{ ((item.file_size || 0) / 1024).toFixed(1) }} KB</div>
+          <div class="text-[10px] text-muted-foreground/80">{{ ((item.file_size || 0) / 1024).toFixed(1) }} KB</div>
         </div>
       </template>
 
@@ -103,7 +104,7 @@
           <Button
             variant="outline"
             size="sm"
-            class="h-7 px-2.5 text-[11px]"
+            class="h-7 px-2.5 text-[11px] rounded-lg"
             @click="emitView(item)"
           >
             Preview
@@ -111,7 +112,7 @@
           <Button
             v-if="item.tte_status !== 'SIGNED_BSRE' && userRole === 'dokter'"
             size="sm"
-            class="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white"
+            class="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
             @click="openSignModal(item)"
           >
             Sign BSrE
@@ -120,7 +121,7 @@
             v-if="item.tte_status === 'SIGNED_BSRE'"
             variant="outline"
             size="sm"
-            class="h-7 px-2.5 text-[11px] text-emerald-700 border-emerald-200"
+            class="h-7 px-2.5 text-[11px] text-emerald-400 border-emerald-500/30 rounded-lg"
             @click="openVerifyModal(item)"
           >
             Verifikasi
@@ -129,7 +130,7 @@
             v-if="item.tte_status !== 'SIGNED_BSRE' && (userRole === 'dokter' || userRole === 'admin')"
             variant="ghost"
             size="sm"
-            class="h-7 px-2 text-[11px] text-rose-600 hover:bg-rose-50"
+            class="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 rounded-lg"
             @click="confirmDeleteDoc(item)"
           >
             Hapus
@@ -171,22 +172,22 @@
       @confirm="showVerifyModal = false"
     >
       <div v-if="verifyData" class="space-y-3 text-xs">
-        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 font-semibold">
+        <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 font-semibold">
           Status: {{ verifyData.integrity?.integrity_status || 'Dokumen Valid dan Sah' }}
         </div>
-        <div class="grid grid-cols-2 gap-3 text-slate-700">
+        <div class="grid grid-cols-2 gap-3 text-foreground">
           <div>
-            <span class="text-slate-400 block text-[10px]">Penandatangan</span>
+            <span class="text-muted-foreground block text-[10px]">Penandatangan</span>
             <strong>{{ verifyData.signer?.name }}</strong>
           </div>
           <div>
-            <span class="text-slate-400 block text-[10px]">Penerbit Sertifikat (CA)</span>
+            <span class="text-muted-foreground block text-[10px]">Penerbit Sertifikat (CA)</span>
             <strong>{{ verifyData.certificate?.issuer }}</strong>
           </div>
         </div>
         <div>
-          <span class="text-slate-400 block text-[10px]">SHA-256 Dokumen Hash</span>
-          <div class="p-2 bg-slate-50 border rounded font-mono text-[10px] break-all text-slate-700">
+          <span class="text-muted-foreground block text-[10px]">SHA-256 Dokumen Hash</span>
+          <div class="p-2 bg-muted/40 border border-border rounded font-mono text-[10px] break-all text-foreground">
             {{ verifyData.certificate?.sha256_hash }}
           </div>
         </div>

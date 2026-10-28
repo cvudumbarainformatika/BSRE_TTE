@@ -1,10 +1,10 @@
 <template>
-  <Card class="border-slate-300 shadow-md p-6 max-w-4xl mx-auto bg-white text-black font-sans">
+  <Card class="border-border shadow-md p-6 max-w-4xl mx-auto glass-panel text-foreground font-sans">
     <!-- Top Action Bar -->
-    <div class="flex flex-wrap items-center justify-between pb-4 mb-4 border-b border-slate-200 gap-3">
+    <div class="flex flex-wrap items-center justify-between pb-4 mb-4 border-b border-border gap-3">
       <div class="flex items-center gap-2">
-        <Badge class="bg-blue-100 text-blue-800 font-bold text-xs">SIMRS-V3</Badge>
-        <h2 class="text-sm md:text-base font-bold text-slate-800 uppercase tracking-wide">
+        <Badge class="bg-primary/20 text-primary font-bold text-xs">SIMRS-V3</Badge>
+        <h2 class="text-sm md:text-base font-bold text-foreground uppercase tracking-wide">
           Lembar Konsultasi Dokter Spesialis
         </h2>
         <Badge variant="secondary" class="text-xs">2 Konsultasi Tercatat</Badge>
@@ -15,7 +15,7 @@
           size="sm"
           :disabled="isGenerating"
           @click="generateAndSignPdf"
-          class="bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold gap-2"
+          class="bg-primary text-primary-foreground text-xs font-bold gap-2 rounded-xl"
         >
           <Printer class="w-4 h-4" />
           <span>{{ isGenerating ? 'Memproses PDF & TTE...' : 'Cetak Dokumen' }}</span>
@@ -24,10 +24,10 @@
     </div>
 
     <!-- Notification generated -->
-    <Alert v-if="successDoc" class="mb-4 bg-emerald-50 border-emerald-200 text-emerald-900">
+    <Alert v-if="successDoc" class="mb-4 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
       <AlertTitle class="text-xs font-bold flex items-center justify-between">
         <span>✓ PDF Berhasil dibuat: {{ successDoc.filename }}</span>
-        <Button variant="link" size="sm" class="h-6 text-xs text-blue-700 font-bold" @click="$emit('view-generated', successDoc)">
+        <Button variant="link" size="sm" class="h-6 text-xs text-primary font-bold" @click="$emit('view-generated', successDoc)">
           Lihat Viewer
         </Button>
       </AlertTitle>

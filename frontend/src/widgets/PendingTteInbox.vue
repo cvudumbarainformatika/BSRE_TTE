@@ -1,5 +1,5 @@
 <template>
-  <Card class="border-slate-200 shadow-sm overflow-hidden bg-white text-slate-800">
+  <Card class="border-border shadow-xs overflow-hidden glass-panel text-foreground">
     <!-- Top Alert / Notification Banner -->
     <div class="bg-amber-500/10 border-b border-amber-500/20 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-start gap-3">
@@ -8,14 +8,14 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h3 class="text-base font-bold text-slate-900">
+            <h3 class="text-base font-bold text-foreground">
               Signature Inbox — Antrean Dokumen Menunggu TTE BSrE
             </h3>
             <Badge class="bg-amber-500 text-white font-black animate-pulse">
               {{ totalPending }} Dokumen
             </Badge>
           </div>
-          <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
             Dokumen dari database MySQL SIMRS secara otomatis ditarik ke antrean ini tanpa perlu klik kirim per dokumen di SIMRS. Anda dapat menandatangani <strong>seluruh dokumen sekaligus (Batch Sign)</strong> dalam 1 kali otorisasi Passphrase BSrE.
           </p>
         </div>
@@ -27,7 +27,7 @@
           size="sm"
           :disabled="selectedIds.length === 0 || isBatchSigning"
           @click="openBatchSignModal"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-2"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-2 rounded-xl"
         >
           <ShieldCheck class="w-4 h-4" />
           <span>Tanda Tangani Sekaligus ({{ selectedIds.length }} Terpilih)</span>
@@ -36,12 +36,12 @@
     </div>
 
     <!-- Category Filter & Select All Bar -->
-    <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+    <div class="p-4 bg-muted/30 border-b border-border flex flex-wrap items-center justify-between gap-3 text-xs">
       <div class="flex flex-wrap items-center gap-1.5">
         <Button
           size="sm"
           :variant="selectedType === '' ? 'default' : 'outline'"
-          class="h-8 text-xs"
+          class="h-8 text-xs rounded-lg"
           @click="changeCategory('')"
         >
           Semua ({{ totalPending }})
@@ -51,7 +51,7 @@
           :key="type"
           size="sm"
           :variant="selectedType === type ? 'default' : 'outline'"
-          class="h-8 text-xs capitalize"
+          class="h-8 text-xs capitalize rounded-lg"
           @click="changeCategory(type)"
         >
           {{ formatType(type) }} ({{ count }})
@@ -61,7 +61,7 @@
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2 cursor-pointer" @click="toggleSelectAll">
           <Checkbox :checked="isAllSelected" />
-          <Label class="text-xs font-medium text-slate-700 cursor-pointer">
+          <Label class="text-xs font-medium text-foreground cursor-pointer">
             Pilih Semua Dokumen ({{ pendingDocs.length }})
           </Label>
         </div>
@@ -69,7 +69,7 @@
         <Button
           variant="outline"
           size="sm"
-          class="h-8 px-2.5 gap-1.5 text-xs"
+          class="h-8 px-2.5 gap-1.5 text-xs rounded-lg border-border"
           :disabled="isLoading"
           @click="loadPendingDocs"
         >
@@ -81,17 +81,17 @@
 
     <!-- Feedback Banner Batch Sukses -->
     <div v-if="batchSuccessInfo" class="m-4">
-      <Alert class="bg-emerald-50 border-emerald-200 text-emerald-950">
+      <Alert class="bg-emerald-500/10 border-emerald-500/30 text-emerald-500">
         <AlertTitle class="text-sm font-bold flex items-center justify-between">
           <span>✓ {{ batchSuccessInfo.message }}</span>
           <Button variant="ghost" size="sm" class="h-6 px-2 text-xs" @click="batchSuccessInfo = null">
             Tutup
           </Button>
         </AlertTitle>
-        <AlertDescription class="text-xs text-emerald-800 mt-1">
-          Penandatangan: <strong>{{ batchSuccessInfo.signer?.name }}</strong> •
-          Waktu TTE: <strong>{{ formatDateTime(batchSuccessInfo.signed_at) }}</strong> •
-          Sertifikat: <strong>BSrE BSSN RI</strong>
+        <AlertDescription class="text-xs text-muted-foreground mt-1">
+          Penandatangan: <strong class="text-foreground">{{ batchSuccessInfo.signer?.name }}</strong> •
+          Waktu TTE: <strong class="text-foreground">{{ formatDateTime(batchSuccessInfo.signed_at) }}</strong> •
+          Sertifikat: <strong class="text-foreground">BSrE BSSN RI</strong>
         </AlertDescription>
       </Alert>
     </div>
@@ -100,7 +100,7 @@
     <CardContent class="p-0">
       <Table>
         <TableHeader>
-          <TableRow class="bg-slate-100/80">
+          <TableRow class="bg-muted/40">
             <TableHead class="w-12 text-center">
               <div class="flex justify-center" @click="toggleSelectAll">
                 <Checkbox :checked="isAllSelected" />
@@ -116,13 +116,13 @@
 
         <TableBody>
           <TableRow v-if="isLoading">
-            <TableCell colspan="6" class="py-12 text-center text-slate-400 text-xs">
+            <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
               Menyinkronkan & memeriksa antrean dokumen dari MySQL SIMRS...
             </TableCell>
           </TableRow>
 
           <TableRow v-else-if="pendingDocs.length === 0">
-            <TableCell colspan="6" class="py-12 text-center text-slate-400 text-xs">
+            <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
               Semua dokumen telah ditandatangani! Tidak ada dokumen pending TTE saat ini.
             </TableCell>
           </TableRow>
@@ -131,7 +131,7 @@
             v-else
             v-for="doc in pendingDocs"
             :key="doc.id"
-            :class="selectedIds.includes(doc.id) ? 'bg-blue-50/40' : ''"
+            :class="selectedIds.includes(doc.id) ? 'bg-primary/10' : ''"
           >
             <TableCell class="text-center">
               <div class="flex justify-center" @click="toggleDocSelection(doc.id)">
@@ -147,24 +147,24 @@
                 >
                   {{ formatType(doc.document_type) }}
                 </Badge>
-                <span class="text-slate-800 font-semibold text-xs">{{ doc.title }}</span>
+                <span class="text-foreground font-semibold text-xs">{{ doc.title }}</span>
               </div>
-              <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ doc.filename }}</div>
+              <div class="text-[10px] text-muted-foreground font-mono mt-0.5">{{ doc.filename }}</div>
             </TableCell>
 
             <TableCell>
-              <div class="font-bold text-xs text-slate-800">{{ getPasienName(doc) }}</div>
-              <div class="text-[10px] text-slate-500">{{ doc.description }}</div>
+              <div class="font-bold text-xs text-foreground">{{ getPasienName(doc) }}</div>
+              <div class="text-[10px] text-muted-foreground">{{ doc.description }}</div>
             </TableCell>
 
             <TableCell>
-              <div class="font-mono text-xs text-slate-700">RM: {{ doc.pasien_id }}</div>
-              <div class="text-[10px] text-slate-500 font-mono">Kunjungan: #{{ doc.kunjungan_id }}</div>
+              <div class="font-mono text-xs text-foreground">RM: {{ doc.pasien_id }}</div>
+              <div class="text-[10px] text-muted-foreground font-mono">Kunjungan: #{{ doc.kunjungan_id }}</div>
             </TableCell>
 
-            <TableCell class="whitespace-nowrap text-xs text-slate-500">
+            <TableCell class="whitespace-nowrap text-xs text-muted-foreground">
               <div>{{ formatDateTime(doc.uploaded_at) }}</div>
-              <Badge variant="outline" class="mt-0.5 text-[10px] text-amber-700 border-amber-300 bg-amber-50">
+              <Badge variant="outline" class="mt-0.5 text-[10px] text-amber-500 border-amber-500/30 bg-amber-500/10">
                 Menunggu TTE Anda
               </Badge>
             </TableCell>
@@ -174,14 +174,14 @@
                 <Button
                   variant="outline"
                   size="sm"
-                  class="h-7 px-2.5 text-[11px] text-blue-600 border-blue-200"
+                  class="h-7 px-2.5 text-[11px] text-primary border-primary/30 rounded-lg"
                   @click="$emit('preview-doc', doc)"
                 >
                   Preview PDF
                 </Button>
                 <Button
                   size="sm"
-                  class="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  class="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg"
                   @click="signSingleDoc(doc)"
                 >
                   Sign TTE

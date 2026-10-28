@@ -1,20 +1,20 @@
 <template>
   <div class="space-y-4">
     <!-- Top Control Panel: Modular Card Component -->
-    <Card class="border-slate-200 shadow-sm bg-white">
-      <CardHeader class="pb-4 border-b border-slate-100">
+    <Card class="border-border shadow-xs glass-panel text-foreground">
+      <CardHeader class="pb-4 border-b border-border">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <Badge class="bg-teal-600 text-white uppercase font-bold text-[10px]">
+              <Badge class="bg-primary/15 text-primary border border-primary/30 uppercase font-bold text-[10px]">
                 SYNC MYSQL SIMRS READ-ONLY (SELECT ONLY)
               </Badge>
-              <CardTitle class="text-base font-black text-slate-900 uppercase">
+              <CardTitle class="text-base font-black text-foreground uppercase">
                 Dokumen Surat Keterangan Kematian (Rawat Inap)
               </CardTitle>
             </div>
-            <CardDescription class="text-xs text-slate-500">
-              Data ditarik otomatis dari database MySQL SIMRS (<code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">rs23</code>, <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">rs23_nosurat</code>, <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">rs15</code>) tanpa mengubah kode SIMRS.
+            <CardDescription class="text-xs text-muted-foreground">
+              Data ditarik otomatis dari database MySQL SIMRS (<code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs23</code>, <code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs23_nosurat</code>, <code class="bg-muted px-1.5 py-0.5 rounded text-foreground font-mono">rs15</code>) tanpa mengubah kode SIMRS.
             </CardDescription>
           </div>
 
@@ -24,7 +24,7 @@
               size="sm"
               :disabled="isLoadingMysql"
               @click="loadFromMysql(true)"
-              class="text-xs font-bold gap-1.5"
+              class="text-xs font-bold gap-1.5 rounded-lg border-border"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingMysql }" />
               <span>{{ isLoadingMysql ? 'Menyinkronkan MySQL SIMRS...' : 'Tarik & Sync Otomatis dari SIMRS' }}</span>
@@ -54,14 +54,14 @@
             <!-- Status Badge Modular -->
             <Badge
               v-if="currentTteStatus === 'SIGNED_BSRE'"
-              class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1 text-xs font-bold"
+              class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 text-xs font-bold"
             >
               ✓ TERVERIFIKASI TTE BSrE
             </Badge>
             <Badge
               v-else
               variant="outline"
-              class="bg-amber-50 text-amber-800 border-amber-300 px-3 py-1 text-xs font-bold"
+              class="bg-amber-500/10 text-amber-500 border border-amber-500/30 px-3 py-1 text-xs font-bold"
             >
               ⏳ Menunggu TTE di Signature Inbox
             </Badge>
@@ -71,7 +71,7 @@
               size="sm"
               :disabled="isSubmitting"
               @click="openDirectSignModal"
-              class="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5"
+              class="bg-primary text-primary-foreground text-xs font-bold gap-1.5 rounded-xl shadow-xs"
             >
               <ShieldCheck class="w-4 h-4" />
               <span>Tanda Tangani TTE BSrE Sekarang</span>
@@ -83,7 +83,7 @@
               variant="outline"
               size="sm"
               @click="openPdfViewer"
-              class="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-bold gap-1.5"
+              class="border-primary/40 text-primary hover:bg-primary/10 text-xs font-bold gap-1.5 rounded-xl"
             >
               <FileText class="w-4 h-4" />
               <span>Preview & Cetak PDF Resmi</span>
@@ -135,7 +135,7 @@
         <Alert
           v-if="feedbackMsg"
           :variant="feedbackError ? 'destructive' : 'default'"
-          class="mt-2 bg-emerald-50/80 border-emerald-200 text-emerald-950"
+          class="mt-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
         >
           <AlertTitle class="text-xs font-bold flex items-center justify-between">
             <span>{{ feedbackError ? 'Peringatan' : 'Informasi Layanan TTE BSrE' }}</span>
@@ -148,7 +148,7 @@
             <Button
               v-if="activeDocumentId && !feedbackError"
               size="sm"
-              class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 rounded-lg"
               @click="openPdfViewer"
             >
               Buka PDF Resmi →
@@ -160,9 +160,10 @@
 
     <!-- ===================================================================== -->
     <!-- TAMPILAN KERTAS 100% IDENTIK SuratKematianPage.vue (SS1 & SS3)        -->
+    <!-- Pengecualian Sesuai Prompt: Meniru Dokumen Fisik Asli SIMRS            -->
     <!-- ===================================================================== -->
-    <Card class="border-slate-300 shadow-md overflow-hidden max-w-4xl mx-auto bg-white">
-      <div class="px-5 py-3 bg-teal-600 text-white flex items-center justify-between">
+    <Card class="border-border shadow-md overflow-hidden max-w-4xl mx-auto bg-card">
+      <div class="px-5 py-3 bg-primary text-primary-foreground flex items-center justify-between">
         <div class="font-bold text-sm tracking-wide">SURAT KEMATIAN</div>
         <div class="text-xs opacity-90 font-mono">
           Noreg: {{ pasienData.noreg }} | RM: {{ pasienData.norm }}
