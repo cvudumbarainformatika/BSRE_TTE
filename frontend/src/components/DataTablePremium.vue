@@ -64,6 +64,24 @@ const filteredItems = computed(() => {
 })
 
 // --- Pagination Logic ---
+const hasActionColumn = computed(() => {
+  return props.columns.some(c => c.isAction)
+})
+
+const middleColumns = computed(() => {
+  if (hasActionColumn.value) {
+    return props.columns.slice(1, -1)
+  }
+  return props.columns.slice(1, -2)
+})
+
+const statusColumn = computed(() => {
+  if (hasActionColumn.value) {
+    return props.columns[props.columns.length - 1]
+  }
+  return props.columns[props.columns.length - 2]
+})
+
 const totalDataCount = computed(() => props.serverSide ? props.totalItems : filteredItems.value.length)
 const totalPages = computed(() => Math.ceil(totalDataCount.value / props.pageSize) || 1)
 
@@ -218,13 +236,15 @@ const handleRowClick = (item) => {
                     :key="col.key" 
                     :class="[col.align === 'right' ? 'text-right' : 'text-left', col.class, 'py-3 px-3 overflow-hidden align-middle']"
                 >
-                  <div v-if="col.isAction" class="relative h-10 px-2 flex items-center justify-end overflow-hidden">
-                      <div class="transition-all duration-300 opacity-100 group-hover:opacity-0 group-hover:pointer-events-none absolute right-2">
+                  <div v-if="col.isAction" class="relative h-10 px-1 flex items-center justify-end overflow-hidden">
+                      <!-- Status Normal (Hilang saat Hover) -->
+                      <div class="transition-all duration-200 opacity-100 group-hover:opacity-0 group-hover:pointer-events-none absolute right-1">
                         <slot :name="`cell-${col.key}`" :item="item">
                           {{ item[col.key] }}
                         </slot>
                       </div>
-                      <div class="flex items-center gap-1 transition-all duration-300 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+                      <!-- Tombol Aksi Gmail-Style (Muncul saat Hover) -->
+                      <div class="flex items-center gap-1.5 transition-all duration-200 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 pointer-events-none group-hover:pointer-events-auto" @click.stop>
                          <slot name="actions" :item="item"></slot>
                       </div>
                   </div>
@@ -274,7 +294,7 @@ const handleRowClick = (item) => {
             
             <!-- Details Area (Perihal & Penandatangan) -->
             <div class="space-y-2.5 pt-1">
-               <div v-for="col in columns.slice(1, -2)" :key="col.key" class="text-left">
+               <div v-for="col in middleColumns" :key="col.key" class="text-left">
                   <slot :name="`cell-${col.key}`" :item="item">
                     <span class="text-xs text-muted-foreground">{{ item[col.key] }}</span>
                   </slot>
@@ -282,10 +302,10 @@ const handleRowClick = (item) => {
             </div>
 
             <!-- Footer: Status -->
-            <div class="flex items-center justify-between pt-2.5 border-t border-border/20 text-xs">
+            <div v-if="statusColumn" class="flex items-center justify-between pt-2.5 border-t border-border/20 text-xs">
               <div>
-                <slot :name="`cell-${columns[columns.length - 2].key}`" :item="item">
-                   <span class="text-[10px] font-bold uppercase text-muted-foreground">{{ item[columns[columns.length - 2].key] }}</span>
+                <slot :name="`cell-${statusColumn.key}`" :item="item">
+                   <span class="text-[10px] font-bold uppercase text-muted-foreground">{{ item[statusColumn.key] }}</span>
                 </slot>
               </div>
             </div>

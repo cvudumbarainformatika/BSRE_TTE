@@ -152,28 +152,26 @@
         </div>
       </template>
 
-      <!-- Kolom 5: Aksi Cepat (Hanya Icon dengan Tooltip) -->
-      <template #cell-aksi="{ item }">
-        <div class="flex flex-nowrap items-center justify-end gap-1.5 shrink-0" @click.stop>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8 rounded-lg text-primary border-primary/30 hover:bg-primary/10 shrink-0 transition-transform active:scale-95"
-            title="Preview PDF & Riwayat Versi"
-            @click="emitView(item)"
-          >
-            <Eye class="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 rounded-lg shrink-0 transition-transform active:scale-95"
-            title="Verifikasi Keaslian Sertifikat BSrE BSSN"
-            @click="openVerifyModal(item)"
-          >
-            <ShieldCheck class="w-4 h-4" />
-          </Button>
-        </div>
+      <!-- Slot Actions Gmail-Style (Muncul saat baris di-hover di desktop, selalu ada di mobile card) -->
+      <template #actions="{ item }">
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8 rounded-lg text-primary border-primary/30 hover:bg-primary/10 shadow-xs shrink-0 transition-transform active:scale-95"
+          title="Preview PDF & Riwayat Versi"
+          @click="emitView(item)"
+        >
+          <Eye class="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 rounded-lg shadow-xs shrink-0 transition-transform active:scale-95"
+          title="Verifikasi Keaslian Sertifikat BSrE BSSN"
+          @click="openVerifyModal(item)"
+        >
+          <ShieldCheck class="w-4 h-4" />
+        </Button>
       </template>
     </DataTablePremium>
 
@@ -266,13 +264,12 @@ const props = defineProps({
 
 const emit = defineEmits(['view-document'])
 
-// Struktur Kolom Tetap Sesuai Urutan Asli
+// Struktur Kolom Gmail-Style: Kolom Aksi dihilangkan dari header desktop, muncul saat baris di-hover
 const columns = [
-  { key: 'document_type', label: 'Jenis Dokumen', class: 'w-[23%]' },
-  { key: 'title', label: 'Perihal & No. Dokumen', class: 'w-[35%]' },
-  { key: 'tte_signer_name', label: 'Penandatangan TTE', class: 'w-[22%]' },
-  { key: 'tte_status', label: 'Status', class: 'w-[12%]' },
-  { key: 'aksi', label: 'Aksi', align: 'right', class: 'w-[8%]' }
+  { key: 'document_type', label: 'Jenis Dokumen', class: 'w-[24%]' },
+  { key: 'title', label: 'Perihal & No. Dokumen', class: 'w-[38%]' },
+  { key: 'tte_signer_name', label: 'Penandatangan TTE', class: 'w-[24%]' },
+  { key: 'tte_status', label: 'Status', align: 'right', isAction: true, class: 'w-[14%]' }
 ]
 
 const documents = ref([])
