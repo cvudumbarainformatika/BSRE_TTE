@@ -212,11 +212,12 @@
                 </div>
               </TableCell>
 
-              <!-- Kolom 4: Status Otorisasi -->
+              <!-- Kolom 4: Status Otorisasi (Ringkas: wait) -->
               <TableCell class="px-2 py-3 align-middle">
-                <Badge variant="outline" class="text-[10px] px-2 py-0.5 text-amber-500 border-amber-500/30 bg-amber-500/10 shrink-0 whitespace-nowrap">
-                  Menunggu TTE
-                </Badge>
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-medium whitespace-nowrap shadow-xs">
+                  <Clock class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>wait</span>
+                </div>
               </TableCell>
 
               <!-- Kolom 5: Aksi (Hanya Icon dengan Tooltip) -->
@@ -377,7 +378,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Bell, ShieldCheck, RefreshCw, UserCheck, Eye } from 'lucide-vue-next'
+import { Bell, ShieldCheck, RefreshCw, UserCheck, Eye, Clock } from 'lucide-vue-next'
 
 const emit = defineEmits(['preview-doc', 'document-signed'])
 

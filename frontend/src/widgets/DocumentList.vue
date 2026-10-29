@@ -108,13 +108,46 @@
         </div>
       </template>
 
-      <!-- Kolom 4: Status (Badge Terverifikasi BSrE Meniru SS) -->
-      <template #cell-tte_status>
+      <!-- Kolom 4: Status (Badge Ringkas: verify, wait, failed) -->
+      <template #cell-tte_status="{ item }">
         <div class="min-w-0 max-w-full overflow-hidden">
-          <!-- Badge Pill Terverifikasi BSrE (Tiru SS) -->
-          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium whitespace-nowrap shadow-xs">
+          <!-- Status verify (Sah BSrE) -->
+          <div
+            v-if="item.tte_status === 'SIGNED_BSRE' || item.tte_status === 'SIGNED'"
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium whitespace-nowrap shadow-xs"
+            title="Terverifikasi BSrE BSSN"
+          >
             <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Terverifikasi BSrE</span>
+            <span>verify</span>
+          </div>
+
+          <!-- Status wait (Menunggu) -->
+          <div
+            v-else-if="item.tte_status === 'UNSIGNED' || item.tte_status === 'PENDING'"
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-medium whitespace-nowrap shadow-xs"
+            title="Menunggu TTE"
+          >
+            <Clock class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>wait</span>
+          </div>
+
+          <!-- Status failed (Gagal) -->
+          <div
+            v-else-if="item.tte_status === 'FAILED' || item.tte_status === 'REJECTED'"
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-medium whitespace-nowrap shadow-xs"
+            title="Gagal / Ditolak"
+          >
+            <XCircle class="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            <span>failed</span>
+          </div>
+
+          <!-- Fallback status lainnya -->
+          <div
+            v-else
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground text-[11px] font-medium whitespace-nowrap shadow-xs"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>
+            <span>{{ String(item.tte_status || 'wait').toLowerCase() }}</span>
           </div>
         </div>
       </template>
@@ -214,7 +247,7 @@ import { documentApi } from '@/services/api'
 import DataTablePremium from '@/components/DataTablePremium.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, ShieldCheck, Eye, CheckCircle2 } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck, Eye, CheckCircle2, Clock, XCircle } from 'lucide-vue-next'
 
 const props = defineProps({
   kunjunganId: {
