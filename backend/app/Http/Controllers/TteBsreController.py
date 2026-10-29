@@ -238,6 +238,7 @@ def batch_sign_documents(
     db.commit()
 
     # Broadcast WebSocket ke SIMRS Web, Mobile React Native, dan SSO
+    repo = DocumentRepository(db)
     for sid in success_list:
         signed_doc = repo.get_by_id(sid)
         if signed_doc:
