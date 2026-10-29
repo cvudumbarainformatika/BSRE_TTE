@@ -9,14 +9,14 @@
         <div>
           <div class="flex items-center gap-2">
             <h3 class="text-base font-bold text-foreground">
-              Inbox TTE Dokter — Otorisasi Dokumen Medis
+              Inbox Antrean TTE — Otorisasi Dokumen Elektronik
             </h3>
             <Badge class="bg-amber-500 text-white font-black">
               {{ totalPending }} Dokumen
             </Badge>
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Daftar dokumen Rekam Medis Elektronik (E-RM) yang masuk ke Inbox Anda untuk diverifikasi dan ditandatangani secara elektronik (TTE BSrE BSSN).
+            Daftar seluruh dokumen elektronik yang menunggu verifikasi dan tanda tangan elektronik (TTE BSrE BSSN) berdasarkan pejabat/dokter penandatangan tujuan.
           </p>
         </div>
       </div>
@@ -35,9 +35,11 @@
       </div>
     </div>
 
-    <!-- Category Filter Bar -->
-    <div class="p-4 bg-muted/30 border-b border-border flex flex-wrap items-center justify-between gap-3 text-xs">
+    <!-- Global Filter Bar: Jenis Dokumen & Tujuan Penandatangan (User TTE) -->
+    <div class="p-4 bg-muted/30 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+      <!-- Filter Jenis Dokumen -->
       <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-[11px] font-semibold text-muted-foreground mr-1">Jenis Dokumen:</span>
         <Button
           size="sm"
           :variant="selectedType === '' ? 'default' : 'outline'"
@@ -57,136 +59,291 @@
           {{ formatType(type) }} ({{ count }})
         </Button>
       </div>
+
+      <!-- Filter Penandatangan Tujuan (Dokumen Ini Untuk Siapa) -->
+      <div v-if="Object.keys(summaryBySigner).length > 0" class="flex flex-wrap items-center gap-1.5 min-w-0">
+        <span class="text-[11px] font-semibold text-muted-foreground mr-1 flex items-center gap-1 shrink-0">
+          <UserCheck class="w-3.5 h-3.5 text-primary shrink-0" />
+          <span>Tujuan TTE:</span>
+        </span>
+        <Button
+          size="sm"
+          :variant="selectedSigner === '' ? 'default' : 'outline'"
+          class="h-8 text-xs rounded-lg shrink-0"
+          @click="changeSigner('')"
+        >
+          Semua Penandatangan
+        </Button>
+        <Button
+          v-for="(count, signerName) in summaryBySigner"
+          :key="signerName"
+          size="sm"
+          :variant="selectedSigner === signerName ? 'default' : 'outline'"
+          class="h-8 text-xs rounded-lg max-w-[220px]"
+          :title="`${signerName} (${count} Dokumen)`"
+          @click="changeSigner(signerName)"
+        >
+          <span class="truncate">{{ signerName }}</span>
+          <span class="ml-1 shrink-0">({{ count }})</span>
+        </Button>
+      </div>
     </div>
 
     <!-- Feedback Banner Sukses -->
     <div v-if="successInfo" class="m-4">
       <Alert class="bg-emerald-500/10 border-emerald-500/30 text-emerald-500">
-        <AlertTitle class="text-sm font-bold flex items-center justify-between">
-          <span>✓ {{ successInfo.message }}</span>
-          <Button variant="ghost" size="sm" class="h-6 px-2 text-xs" @click="successInfo = null">
+        <AlertTitle class="text-sm font-bold flex items-center justify-between gap-2">
+          <span class="truncate" :title="successInfo.message">✓ {{ successInfo.message }}</span>
+          <Button variant="ghost" size="sm" class="h-6 px-2 text-xs shrink-0" @click="successInfo = null">
             Tutup
           </Button>
         </AlertTitle>
-        <AlertDescription class="text-xs text-muted-foreground mt-1">
-          Penandatangan: <strong class="text-foreground">{{ successInfo.signer?.name || 'dr. RIA NURMALA SETYANINGRUM' }}</strong> •
+        <AlertDescription class="text-xs text-muted-foreground mt-1 truncate">
+          Penandatangan: <strong class="text-foreground">{{ successInfo.signer?.name || '-' }}</strong> •
           Waktu TTE: <strong class="text-foreground">{{ formatDateTime(successInfo.signed_at) }}</strong> •
           Sertifikat: <strong class="text-foreground">BSrE BSSN RI</strong>
         </AlertDescription>
       </Alert>
     </div>
 
-    <!-- Table Dokumen Pending Menggunakan Komponen Modular Table -->
+    <!-- Table Dokumen Pending Global (Responsive Desktop & Mobile) -->
     <CardContent class="p-0">
-      <Table>
-        <TableHeader>
-          <TableRow class="bg-muted/40">
-            <TableHead class="text-xs font-bold uppercase">Jenis Dokumen</TableHead>
-            <TableHead class="text-xs font-bold uppercase">Nama Pasien / Jenazah</TableHead>
-            <TableHead class="text-xs font-bold uppercase">No. RM & Kunjungan</TableHead>
-            <TableHead class="text-xs font-bold uppercase">Diterbitkan E-RM</TableHead>
-            <TableHead class="text-xs font-bold uppercase text-center">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
+      <!-- Desktop View (Layar Lapang: xl ke atas) -->
+      <div class="hidden xl:block w-full overflow-hidden">
+        <Table class="table-fixed w-full">
+          <TableHeader>
+            <TableRow class="bg-muted/40">
+              <TableHead class="w-[18%] px-3 text-xs font-bold uppercase">Jenis Dokumen</TableHead>
+              <TableHead class="w-[37%] px-3 text-xs font-bold uppercase">Perihal & No. Dokumen</TableHead>
+              <TableHead class="w-[24%] px-3 text-xs font-bold uppercase">Tujuan TTE (Penandatangan)</TableHead>
+              <TableHead class="w-[11%] px-2 text-xs font-bold uppercase">Status</TableHead>
+              <TableHead class="w-[10%] px-3 text-xs font-bold uppercase text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
 
-        <TableBody>
-          <TableRow v-if="isLoading">
-            <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
-              Menyinkronkan & memeriksa antrean dokumen E-RM...
-            </TableCell>
-          </TableRow>
+          <TableBody>
+            <TableRow v-if="isLoading">
+              <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
+                Memuat daftar antrean dokumen TTE...
+              </TableCell>
+            </TableRow>
 
-          <TableRow v-else-if="pendingDocs.length === 0">
-            <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
-              Semua dokumen telah ditandatangani! Tidak ada dokumen menunggu TTE di Inbox saat ini.
-            </TableCell>
-          </TableRow>
+            <TableRow v-else-if="pendingDocs.length === 0">
+              <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
+                Semua dokumen telah ditandatangani! Tidak ada dokumen menunggu TTE di Inbox saat ini.
+              </TableCell>
+            </TableRow>
 
-          <TableRow
-            v-else
-            v-for="doc in pendingDocs"
-            :key="doc.id"
-          >
-            <TableCell>
-              <div class="flex items-center gap-2">
-                <Badge
-                  :variant="doc.document_type === 'surat_kematian' ? 'destructive' : 'secondary'"
-                  class="text-[10px] uppercase font-bold"
+            <TableRow
+              v-else
+              v-for="doc in pendingDocs"
+              :key="doc.id"
+            >
+              <!-- Kolom 1: Jenis Dokumen + Versi + Waktu Diterbitkan di bawahnya -->
+              <TableCell class="px-3 py-3 align-middle">
+                <div class="flex flex-nowrap items-center gap-1.5">
+                  <Badge
+                    :variant="doc.document_type === 'surat_kematian' ? 'destructive' : 'secondary'"
+                    class="text-[10px] uppercase font-bold shrink-0 whitespace-nowrap"
+                    :title="formatType(doc.document_type)"
+                  >
+                    {{ formatType(doc.document_type) }}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    class="text-[10px] px-1.5 font-mono shrink-0 whitespace-nowrap"
+                    :class="getDocVersion(doc) > 1 ? 'bg-amber-500/15 text-amber-500 border-amber-500/40 font-bold' : 'bg-primary/10 text-primary border-primary/30'"
+                  >
+                    {{ getDocVersion(doc) > 1 ? `Revisi v${getDocVersion(doc)}.0` : 'v1.0' }}
+                  </Badge>
+                </div>
+                <div
+                  class="text-[10px] text-muted-foreground mt-1.5 whitespace-nowrap"
+                  :title="`Diterbitkan: ${formatDateTime(doc.uploaded_at)}`"
                 >
-                  {{ formatType(doc.document_type) }}
+                  {{ formatDateTime(doc.uploaded_at) }}
+                </div>
+              </TableCell>
+
+              <!-- Kolom 2: Perihal & No. Dokumen (Global + Ellipsis) -->
+              <TableCell class="px-3 py-3 align-middle">
+                <div class="min-w-0 max-w-[340px] xl:max-w-none">
+                  <div
+                    class="text-foreground font-bold text-xs truncate"
+                    :title="doc.title"
+                  >
+                    {{ doc.title }}
+                  </div>
+                  <div
+                    class="text-[11px] text-muted-foreground mt-0.5 truncate"
+                    :title="getDocReferenceSummary(doc)"
+                  >
+                    {{ getDocReferenceSummary(doc) }}
+                  </div>
+                  <div
+                    class="text-[10px] text-muted-foreground/80 font-mono mt-0.5 truncate"
+                    :title="doc.filename"
+                  >
+                    {{ doc.filename }}
+                  </div>
+                </div>
+              </TableCell>
+
+              <!-- Kolom 3: Tujuan TTE (Avatar & Nama Inline + Ellipsis) -->
+              <TableCell class="px-3 py-3 align-middle">
+                <div class="flex flex-nowrap items-center gap-2 min-w-0">
+                  <div class="w-7 h-7 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {{ getSignerInitial(doc.target_signer_name) }}
+                  </div>
+                  <div class="min-w-0 flex-1 overflow-hidden">
+                    <div
+                      class="font-bold text-xs text-foreground truncate"
+                      :title="doc.target_signer_name || 'Pejabat / Dokter Penandatangan'"
+                    >
+                      {{ doc.target_signer_name || 'Pejabat / Dokter Penandatangan' }}
+                    </div>
+                    <div
+                      class="text-[10px] text-muted-foreground font-mono truncate mt-0.5"
+                      :title="getSignerSubInfo(doc)"
+                    >
+                      {{ getSignerSubInfo(doc) }}
+                    </div>
+                  </div>
+                </div>
+              </TableCell>
+
+              <!-- Kolom 4: Status Otorisasi -->
+              <TableCell class="px-2 py-3 align-middle">
+                <Badge variant="outline" class="text-[10px] px-2 py-0.5 text-amber-500 border-amber-500/30 bg-amber-500/10 shrink-0 whitespace-nowrap">
+                  Menunggu TTE
                 </Badge>
-                <span class="text-foreground font-semibold text-xs">{{ doc.title }}</span>
+              </TableCell>
+
+              <!-- Kolom 5: Aksi (Hanya Icon dengan Tooltip) -->
+              <TableCell class="px-3 py-3 align-middle text-right">
+                <div class="flex flex-nowrap items-center justify-end gap-1.5 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8 text-primary border-primary/30 hover:bg-primary/10 rounded-lg shrink-0 transition-transform active:scale-95"
+                    title="Preview Dokumen PDF"
+                    @click="$emit('preview-doc', doc)"
+                  >
+                    <Eye class="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    class="h-8 w-8 bg-primary text-primary-foreground font-bold rounded-lg shadow-xs shrink-0 transition-transform active:scale-95 hover:bg-primary/90"
+                    title="Tanda Tangani Dokumen secara Elektronik (TTE BSrE)"
+                    @click="openSignModal(doc)"
+                  >
+                    <ShieldCheck class="w-4 h-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+
+      <!-- Mobile & Tablet Responsive Card View (Layar Lebih Kecil) -->
+      <div class="xl:hidden divide-y divide-border">
+        <div v-if="isLoading" class="py-10 text-center text-muted-foreground text-xs">
+          Memuat daftar antrean dokumen TTE...
+        </div>
+        <div v-else-if="pendingDocs.length === 0" class="py-10 text-center text-muted-foreground text-xs px-4">
+          Semua dokumen telah ditandatangani! Tidak ada dokumen menunggu TTE di Inbox saat ini.
+        </div>
+        <div
+          v-else
+          v-for="doc in pendingDocs"
+          :key="`mob-${doc.id}`"
+          class="p-4 space-y-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <Badge
+              :variant="doc.document_type === 'surat_kematian' ? 'destructive' : 'secondary'"
+              class="text-[10px] uppercase font-bold"
+            >
+              {{ formatType(doc.document_type) }}
+            </Badge>
+            <span class="text-[10px] text-muted-foreground">{{ formatDateTime(doc.uploaded_at) }}</span>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-xs text-foreground truncate">{{ doc.title }}</div>
+            <div class="text-[11px] text-muted-foreground truncate mt-0.5">{{ getDocReferenceSummary(doc) }}</div>
+          </div>
+          <div class="flex flex-nowrap items-center justify-between gap-2 pt-2 border-t border-border/50">
+            <div class="flex flex-nowrap items-center gap-2 min-w-0 flex-1">
+              <div class="w-6 h-6 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center justify-center text-[10px] font-bold shrink-0">
+                {{ getSignerInitial(doc.target_signer_name) }}
               </div>
-              <div class="text-[10px] text-muted-foreground font-mono mt-0.5">{{ doc.filename }}</div>
-            </TableCell>
-
-            <TableCell>
-              <div class="font-bold text-xs text-foreground">{{ getPasienName(doc) }}</div>
-              <div class="text-[10px] text-muted-foreground">{{ doc.description }}</div>
-            </TableCell>
-
-            <TableCell>
-              <div class="font-mono text-xs text-foreground">RM: {{ doc.pasien_id }}</div>
-              <div class="text-[10px] text-muted-foreground font-mono">Kunjungan: #{{ doc.kunjungan_id }}</div>
-            </TableCell>
-
-            <TableCell class="whitespace-nowrap text-xs text-muted-foreground">
-              <div>{{ formatDateTime(doc.uploaded_at) }}</div>
-              <Badge variant="outline" class="mt-0.5 text-[10px] text-amber-500 border-amber-500/30 bg-amber-500/10">
-                Menunggu TTE Anda
-              </Badge>
-            </TableCell>
-
-            <TableCell class="text-center whitespace-nowrap">
-              <div class="flex items-center justify-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 px-2.5 text-[11px] text-primary border-primary/30 rounded-lg"
-                  @click="$emit('preview-doc', doc)"
-                >
-                  Preview PDF
-                </Button>
-                <Button
-                  size="sm"
-                  class="h-7 px-2.5 text-[11px] bg-primary text-primary-foreground font-bold rounded-lg shadow-xs"
-                  @click="openSignModal(doc)"
-                >
-                  <ShieldCheck class="w-3.5 h-3.5 mr-1" />
-                  Tanda Tangani TTE
-                </Button>
+              <div class="min-w-0 flex-1">
+                <div class="font-bold text-[11px] text-foreground truncate">{{ doc.target_signer_name }}</div>
+                <div class="text-[10px] text-muted-foreground font-mono truncate">{{ getSignerSubInfo(doc) }}</div>
               </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+            </div>
+            <div class="flex flex-nowrap items-center gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 text-primary border-primary/30 hover:bg-primary/10 rounded-lg shrink-0"
+                title="Preview Dokumen PDF"
+                @click="$emit('preview-doc', doc)"
+              >
+                <Eye class="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
+                class="h-8 w-8 bg-primary text-primary-foreground font-bold rounded-lg shadow-xs shrink-0"
+                title="Tanda Tangani Dokumen secara Elektronik (TTE BSrE)"
+                @click="openSignModal(doc)"
+              >
+                <ShieldCheck class="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </CardContent>
 
     <!-- Modal Sign Dokumen Tunggal Menggunakan Komponen Modular AppDialog -->
     <AppDialog
       v-model="showSignModal"
       title="Otorisasi Tanda Tangan Elektronik (TTE) BSrE BSSN"
-      :description="`Masukkan Passphrase BSrE Anda untuk menandatangani dokumen: ${selectedDoc?.title || ''}`"
+      :description="`Masukkan Passphrase BSrE untuk menandatangani dokumen: ${selectedDoc?.title || ''}`"
       :confirm-text="isSigning ? 'Menandatangani...' : 'Tandatangani Sekarang'"
       cancel-text="Batal"
       :confirm-disabled="!passphrase || isSigning"
       @confirm="executeSign"
     >
       <div class="space-y-4 text-xs">
-        <div v-if="selectedDoc" class="p-3 bg-muted/40 border border-border rounded-xl space-y-1">
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Dokumen:</span>
-            <span class="font-bold text-foreground">{{ selectedDoc.title }}</span>
+        <div v-if="selectedDoc" class="p-3 bg-muted/40 border border-border rounded-xl space-y-1.5">
+          <div class="flex justify-between gap-2">
+            <span class="text-muted-foreground">Jenis Dokumen:</span>
+            <span class="font-bold text-foreground uppercase">{{ formatType(selectedDoc.document_type) }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Pasien:</span>
-            <span class="font-bold text-foreground">{{ getPasienName(selectedDoc) }}</span>
+          <div class="flex justify-between gap-2">
+            <span class="text-muted-foreground">Perihal Dokumen:</span>
+            <span class="font-bold text-foreground text-right">{{ selectedDoc.title }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Tujuan TTE:</span>
-            <span class="font-mono text-foreground">{{ selectedDoc.target_signer_name || 'dr. RIA NURMALA SETYANINGRUM' }}</span>
+          <div class="flex justify-between gap-2">
+            <span class="text-muted-foreground">Nomor / Referensi:</span>
+            <span class="font-mono text-foreground text-right">{{ getDocReferenceSummary(selectedDoc) }}</span>
+          </div>
+          <div class="flex justify-between gap-2 pt-1 border-t border-border">
+            <span class="text-muted-foreground">Penandatangan (Tujuan TTE):</span>
+            <span class="font-bold text-primary text-right">{{ selectedDoc.target_signer_name || '-' }}</span>
           </div>
         </div>
+
+        <!-- Notifikasi Alert Error TTE BSrE -->
+        <Alert v-if="errorMsg" variant="destructive" class="bg-destructive/10 border-destructive/40 text-destructive p-3">
+          <AlertTitle class="text-xs font-bold">✕ Gagal Menandatangani Dokumen (BSrE)</AlertTitle>
+          <AlertDescription class="text-[11px] mt-1 leading-relaxed">
+            {{ errorMsg }}
+          </AlertDescription>
+        </Alert>
 
         <AppInput
           id="inbox-passphrase-input"
@@ -220,14 +377,16 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Bell, ShieldCheck, RefreshCw } from 'lucide-vue-next'
+import { Bell, ShieldCheck, RefreshCw, UserCheck, Eye } from 'lucide-vue-next'
 
 const emit = defineEmits(['preview-doc', 'document-signed'])
 
 const pendingDocs = ref([])
 const totalPending = ref(0)
 const summaryByType = ref({})
+const summaryBySigner = ref({})
 const selectedType = ref('')
+const selectedSigner = ref('')
 const isLoading = ref(false)
 
 const showSignModal = ref(false)
@@ -241,11 +400,13 @@ const loadPendingDocs = async () => {
   isLoading.value = true
   try {
     const res = await documentApi.getPendingMyDocuments({
-      document_type: selectedType.value || undefined
+      document_type: selectedType.value || undefined,
+      target_signer: selectedSigner.value || undefined
     })
     pendingDocs.value = res.data.data
     totalPending.value = res.data.total_pending
-    summaryByType.value = res.data.summary_by_type
+    summaryByType.value = res.data.summary_by_type || {}
+    summaryBySigner.value = res.data.summary_by_signer || {}
   } catch (err) {
     console.error('Gagal mengambil antrean pending:', err)
   } finally {
@@ -255,6 +416,11 @@ const loadPendingDocs = async () => {
 
 const changeCategory = (type) => {
   selectedType.value = type
+  loadPendingDocs()
+}
+
+const changeSigner = (signer) => {
+  selectedSigner.value = signer
   loadPendingDocs()
 }
 
@@ -271,20 +437,27 @@ const executeSign = async () => {
   errorMsg.value = ''
   try {
     const res = await documentApi.signTte(selectedDoc.value.id, {
+      document_id: selectedDoc.value.id,
       passphrase: passphrase.value,
-      catatan: 'Ditandatangani melalui Inbox TTE Dokter E-RM'
+      catatan: 'Ditandatangani melalui Inbox Antrean TTE'
     })
+    const signedData = res.data?.data || res.data
     successInfo.value = {
       message: res.data.message || `Dokumen ${selectedDoc.value.title} berhasil ditandatangani!`,
-      signer: res.data.signer,
-      signed_at: res.data.signed_at || new Date().toISOString()
+      signer: signedData?.signer || { name: selectedDoc.value.target_signer_name },
+      signed_at: signedData?.signed_at || new Date().toISOString()
     }
     showSignModal.value = false
     passphrase.value = ''
     await loadPendingDocs()
     emit('document-signed', res.data)
   } catch (err) {
-    errorMsg.value = err.response?.data?.detail || 'Gagal menandatangani dokumen dengan BSrE'
+    const detail = err.response?.data?.detail
+    if (Array.isArray(detail)) {
+      errorMsg.value = detail.map((d) => d.msg).join(', ')
+    } else {
+      errorMsg.value = detail || 'Gagal menandatangani dokumen dengan BSrE'
+    }
   } finally {
     isSigning.value = false
   }
@@ -295,20 +468,69 @@ const formatType = (type) => {
     surat_kematian: 'Surat Kematian',
     konsul_spesialis: 'Konsul Spesialis',
     resume_medis: 'Resume Medis',
+    laporan_operasi: 'Laporan Operasi',
     hasil_lab: 'Laboratorium',
-    general: 'Umum'
+    radiologi: 'Radiologi',
+    general: 'Dokumen Umum'
   }
   return map[type] || type
 }
 
-const getPasienName = (doc) => {
+const getDocVersion = (doc) => {
+  if (doc?.metadata_json) {
+    try {
+      const meta = JSON.parse(doc.metadata_json)
+      return Number(meta.version || 1)
+    } catch (e) {}
+  }
+  return 1
+}
+
+const getDocReferenceSummary = (doc) => {
   if (doc.metadata_json) {
     try {
       const meta = JSON.parse(doc.metadata_json)
-      return meta.pasien?.nama || meta.pasien?.nama_panggil || doc.title
+      const parts = []
+      if (meta.nomor_surat || meta.nosrtmeninggal) {
+        parts.push(`No. Dokumen: ${meta.nomor_surat || meta.nosrtmeninggal}`)
+      }
+      if (meta.noreg) {
+        parts.push(`Ref: ${meta.noreg}`)
+      }
+      if (parts.length > 0) return parts.join(' • ')
     } catch (e) {}
   }
-  return doc.title
+  if (doc.description) {
+    return doc.description.split('•').slice(0, 2).join('•').trim()
+  }
+  return `ID Dokumen: #${doc.id}`
+}
+
+const getSignerInitial = (name) => {
+  if (!name) return 'P'
+  const cleaned = name
+    .replace(/^(drg?\.|prof\.|h\.|hj\.|ir\.|drs\.|ns\.)\s*/gi, '')
+    .trim()
+  const words = cleaned.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase()
+  }
+  return (cleaned.charAt(0) || 'P').toUpperCase()
+}
+
+const getSignerSubInfo = (doc) => {
+  if (doc.metadata_json) {
+    try {
+      const meta = JSON.parse(doc.metadata_json)
+      const nip = meta.dokter?.nip || meta.dpjp?.nip || doc.target_signer_nip
+      const jabatan = meta.dokter?.ket_jabatan || meta.dpjp?.ket_jabatan
+      if (nip && jabatan) return `NIP: ${nip} • ${jabatan}`
+      if (nip) return `NIP/ID: ${nip}`
+      if (jabatan) return jabatan
+    } catch (e) {}
+  }
+  if (doc.target_signer_nip) return `ID Penandatangan: ${doc.target_signer_nip}`
+  return 'Otorisasi TTE BSrE'
 }
 
 const formatDateTime = (iso) => {

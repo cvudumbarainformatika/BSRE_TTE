@@ -283,19 +283,71 @@ def get_document(
 def view_document_inline(
     document_id: int,
     request: Request,
+    version: Optional[int] = None,
     db: Session = Depends(get_session)
 ):
-    """Stream PDF untuk viewer / iframe inline (tanpa memaksa download)"""
+    """Stream PDF untuk viewer / iframe inline (mendukung preview versi revisi terdahulu via ?version=1)"""
     repo = DocumentRepository(db)
     doc = repo.get_by_id(document_id)
-    if not doc or not os.path.exists(doc.storage_path):
+    if not doc:
         raise HTTPException(status_code=404, detail="File PDF tidak ditemukan")
 
+    target_path = doc.storage_path
+    target_filename = doc.filename
+
+    if version is not None and doc.metadata_json:
+        try:
+            meta = json.loads(doc.metadata_json)
+            cur_ver = int(meta.get("version", 1))
+            if version != cur_ver:
+                for rev in meta.get("revision_history", []):
+                    if int(rev.get("version", 0)) == version and rev.get("storage_path"):
+                        if os.path.exists(rev["storage_path"]):
+                            target_path = rev["storage_path"]
+                            target_filename = rev.get("filename") or target_filename
+                        break
+        except Exception:
+            pass
+
+    if not os.path.exists(target_path):
+        raise HTTPException(status_code=404, detail="File PDF fisik tidak ditemukan")
+
+    # Pastikan metadata PDF memiliki Title resmi agar browser PDF viewer tidak menampilkan '(anonymous)'
+    try:
+        from pypdf import PdfReader, PdfWriter
+        reader = PdfReader(target_path)
+        meta = reader.metadata
+        if not meta or not meta.title or meta.title == "(anonymous)":
+            writer = PdfWriter()
+            writer.append(reader)
+            doc_title = doc.title or "Surat Keterangan Kematian"
+            writer.add_metadata({
+                "/Title": doc_title,
+                "/Author": "UOBK RSUD DOKTER MOHAMAD SALEH",
+                "/Creator": "Sistem E-Archive TTE BSrE BSSN",
+                "/Subject": doc.description or doc_title
+            })
+            with open(target_path, "wb") as f_out:
+                writer.write(f_out)
+    except Exception as e:
+        logger.warning(f"Gagal memperbarui metadata PDF title: {e}")
+
     return FileResponse(
-        doc.storage_path,
+        target_path,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={doc.filename}"}
+        headers={"Content-Disposition": f'inline; filename="{target_filename}"'}
     )
+
+@router.get("/{document_id}/view/{filename}")
+def view_document_inline_named(
+    document_id: int,
+    filename: str,
+    request: Request,
+    version: Optional[int] = None,
+    db: Session = Depends(get_session)
+):
+    """Wrapper stream PDF dengan nama file eksplisit di URL agar browser menampilkan judul dokumen"""
+    return view_document_inline(document_id=document_id, request=request, version=version, db=db)
 
 @router.get("/{document_id}/download")
 def download_document(

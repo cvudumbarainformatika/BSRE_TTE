@@ -17,6 +17,7 @@ from app.Repositories.DocumentRepository import DocumentRepository
 from app.Services.BsreTteService import bsre_service
 from app.Services.SimrsMysqlReadService import simrs_mysql_service
 from app.Services.AuditService import audit_service
+from app.Services.WebSocketService import dispatch_ws_event
 from app.Http.Middleware.AuthMiddleware import get_current_user, require_roles
 from app.Http.Requests.DocumentRequests import TteSignRequest, BatchTteSignRequest
 
@@ -27,14 +28,15 @@ router = APIRouter(prefix="/tte", tags=["TTE BSRE"])
 @router.get("/pending-my-documents")
 def get_pending_my_documents(
     document_type: Optional[str] = None,
+    target_signer: Optional[str] = None,
     auto_sync_mysql: bool = False,
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Mengambil daftar dokumen yang belum ditandatangani (TTE BSRE)
-    khusus milik user yang sedang login.
-    Otomatis melakukan tarik data (Read-Only SELECT) dari MySQL SIMRS jika auto_sync_mysql=True.
+    Mengambil daftar dokumen global yang belum ditandatangani (TTE BSRE).
+    Dapat difilter berdasarkan jenis dokumen (document_type) maupun
+    pejabat/dokter penandatangan tujuan (target_signer).
     """
     if auto_sync_mysql:
         try:
@@ -42,36 +44,35 @@ def get_pending_my_documents(
         except Exception as e:
             logger.warning(f"Auto-sync MySQL SIMRS dilewati: {e}")
 
-    user_nip = current_user.nip
-    query = select(Document).where(Document.tte_status != "SIGNED_BSRE")
-
-    if current_user.role.value == "dokter" or str(current_user.role) == "dokter":
-        if user_nip or current_user.nik:
-            query = query.where(
-                (Document.target_signer_nip == user_nip) |
-                (Document.target_signer_nip == current_user.nik) |
-                (Document.target_signer_nip == settings.BSRE_DEV_NIK) |
-                (Document.target_signer_nip == None)
-            )
-
-    if document_type:
-        query = query.where(Document.document_type == document_type)
-
-    query = query.order_by(Document.uploaded_at.desc())
-    items = db.exec(query).all()
+    all_pending = db.exec(
+        select(Document)
+        .where(Document.tte_status != "SIGNED_BSRE")
+        .order_by(Document.uploaded_at.desc())
+    ).all()
 
     type_counts = defaultdict(int)
-    for doc in items:
+    signer_counts = defaultdict(int)
+    for doc in all_pending:
         type_counts[doc.document_type] += 1
+        s_name = doc.target_signer_name or "Belum Ditentukan"
+        signer_counts[s_name] += 1
+
+    filtered_items = all_pending
+    if document_type:
+        filtered_items = [d for d in filtered_items if d.document_type == document_type]
+    if target_signer:
+        filtered_items = [d for d in filtered_items if (d.target_signer_name or "Belum Ditentukan") == target_signer]
 
     return {
-        "total_pending": len(items),
+        "total_pending": len(all_pending),
+        "filtered_count": len(filtered_items),
         "summary_by_type": dict(type_counts),
+        "summary_by_signer": dict(signer_counts),
         "signer_info": {
             "nama": current_user.nama,
             "nip": current_user.nip
         },
-        "data": items
+        "data": filtered_items
     }
 
 
@@ -95,11 +96,10 @@ def batch_sign_documents(
     if not req.document_ids:
         raise HTTPException(status_code=400, detail="Pilih minimal 1 dokumen untuk ditandatangani.")
 
-    signer_nik = current_user.nik or settings.BSRE_DEV_NIK
-    if not req.passphrase or req.passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+    if not req.passphrase or len(req.passphrase.strip()) < 3:
         raise HTTPException(
             status_code=400,
-            detail="Otorisasi BSrE Gagal: Passphrase BSrE yang Anda masukkan tidak sesuai."
+            detail="Otorisasi BSrE Gagal: Passphrase BSrE wajib diisi."
         )
 
     docs = db.exec(
@@ -110,7 +110,7 @@ def batch_sign_documents(
     ).all()
 
     if not docs:
-        raise HTTPException(status_code=404, detail="Tidak ada dokumen belum bertanda tangan yang ditemukan.")
+        raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan atau sudah ditandatangani sebelumnya.")
 
     nip = current_user.nip or ""
     nama = current_user.nama
@@ -120,11 +120,13 @@ def batch_sign_documents(
 
     success_list = []
     failed_list = []
+    last_signer_name = nama
+    last_signer_nip = nip
 
     for doc in docs:
         try:
             if not os.path.exists(doc.storage_path):
-                failed_list.append({"id": doc.id, "error": "File PDF fisik tidak ditemukan"})
+                failed_list.append({"id": doc.id, "error": "File PDF fisik dokumen tidak ditemukan di server storage."})
                 continue
 
             doc_dir = os.path.dirname(doc.storage_path)
@@ -140,20 +142,37 @@ def batch_sign_documents(
                     meta_payload = None
 
             effective_signer_name = doc.target_signer_name or nama
+            effective_signer_nip = doc.target_signer_nip or nip
+
+            # Ambil NIK asli dokter penandatangan dari metadata dokumen E-RM
+            doc_signer_nik = None
+            if meta_payload:
+                dok_obj = meta_payload.get("dokter") or meta_payload.get("dpjp") or {}
+                doc_signer_nik = dok_obj.get("nik")
+            effective_signer_nik = doc_signer_nik or (settings.BSRE_DEV_NIK if settings.BSRE_MOCK_MODE else current_user.nik)
+
+            last_signer_name = effective_signer_name
+            last_signer_nip = effective_signer_nip
 
             sign_result = bsre_service.sign_document(
                 input_pdf_path=orig_pdf_path,
                 output_pdf_path=signed_path,
                 signer_name=effective_signer_name,
-                signer_nik=signer_nik,
-                signer_nip=nip,
+                signer_nik=effective_signer_nik,
+                signer_nip=effective_signer_nip,
                 doc_id=doc.id,
                 passphrase=req.passphrase.strip(),
                 metadata_payload=meta_payload
             )
 
             qr_path = os.path.join(qr_dir, f"qr_doc_{doc.id}.png")
-            verify_url = bsre_service.generate_qr_verification(doc.id, signer_nik, effective_signer_name, qr_path, metadata_payload=meta_payload)
+            verify_url = bsre_service.generate_qr_verification(
+                doc.id,
+                effective_signer_nik or effective_signer_nip,
+                effective_signer_name,
+                qr_path,
+                metadata_payload=meta_payload
+            )
 
             doc.original_path = orig_pdf_path
             doc.storage_path = signed_path
@@ -161,7 +180,7 @@ def batch_sign_documents(
             doc.tte_status = "SIGNED_BSRE"
             doc.tte_bsre_id = sign_result["bsre_id"]
             doc.tte_signed_at = execution_time
-            doc.tte_signer_nip = nip
+            doc.tte_signer_nip = effective_signer_nip
             doc.tte_signer_name = effective_signer_name
             doc.qr_code_path = qr_path
             doc.pdf_hash = sign_result["pdf_hash"]
@@ -172,7 +191,7 @@ def batch_sign_documents(
             sig_record = TteSignature(
                 document_id=doc.id,
                 bsre_request_id=sign_result["bsre_id"],
-                signer_nip=nip or "TERVERIFIKASI",
+                signer_nip=effective_signer_nip or "TERVERIFIKASI",
                 signer_name=effective_signer_name,
                 signer_role="dokter",
                 signed_at=execution_time,
@@ -188,15 +207,16 @@ def batch_sign_documents(
                 db=db,
                 document_id=doc.id,
                 user_id=current_user.id,
-                username=current_user.username,
-                user_role="dokter",
-                action="BATCH_SIGN_TTE_BSRE",
+                username=effective_signer_name,
+                user_role="Penandatangan TTE",
+                action="SIGN_TTE_BSRE",
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent"),
                 details={
-                    "batch_size": len(docs),
                     "bsre_id": sign_result["bsre_id"],
-                    "signer_name": effective_signer_name
+                    "signer_name": effective_signer_name,
+                    "signer_nip": effective_signer_nip,
+                    "catatan": req.catatan or "Ditandatangani secara elektronik (TTE BSrE BSSN)"
                 }
             )
 
@@ -217,14 +237,34 @@ def batch_sign_documents(
         db.add(n)
     db.commit()
 
+    # Broadcast WebSocket ke SIMRS Web, Mobile React Native, dan SSO
+    for sid in success_list:
+        signed_doc = repo.get_by_id(sid)
+        if signed_doc:
+            doc_noreg = signed_doc.kunjungan_id
+            ver_label = "v1.0"
+            if signed_doc.metadata_json:
+                try:
+                    meta_obj = json.loads(signed_doc.metadata_json)
+                    ver_label = f"v{meta_obj.get('version', 1)}.0"
+                except Exception:
+                    pass
+            dispatch_ws_event(
+                event_type="DOCUMENT_SIGNED",
+                noreg=doc_noreg,
+                document_id=signed_doc.id,
+                version_label=ver_label,
+                extra={"signer_name": last_signer_name, "title": signed_doc.title}
+            )
+
     return {
         "message": f"Berhasil menandatangani {len(success_list)} dokumen secara elektronik via BSrE BSSN.",
         "signed_count": len(success_list),
         "failed_count": len(failed_list),
         "signed_at": execution_time.isoformat(),
         "signer": {
-            "name": nama,
-            "nip": nip
+            "name": last_signer_name,
+            "nip": last_signer_nip
         },
         "success_ids": success_list,
         "failed_details": failed_list
@@ -247,8 +287,14 @@ def sign_document_bsre(
         current_user=current_user
     )
     if batch_res["signed_count"] == 0:
-        raise HTTPException(status_code=400, detail="Gagal menandatangani dokumen.")
-    return {"message": "Dokumen berhasil ditandatangani secara elektronik via BSRE BSSN.", "data": batch_res}
+        err_reason = "Gagal menandatangani dokumen dengan BSrE BSSN."
+        if batch_res.get("failed_details"):
+            err_reason = batch_res["failed_details"][0].get("error") or err_reason
+        raise HTTPException(status_code=400, detail=err_reason)
+    return {
+        "message": f"Dokumen berhasil ditandatangani secara elektronik oleh {batch_res['signer']['name']} via BSrE BSSN.",
+        "data": batch_res
+    }
 
 
 @router.get("/{document_id}/verify")

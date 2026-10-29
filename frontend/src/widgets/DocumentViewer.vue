@@ -2,18 +2,22 @@
   <Card v-if="document" class="border-border shadow-xs overflow-hidden flex flex-col h-full min-h-[600px] glass-panel text-foreground">
     <!-- Top Header & Actions -->
     <div class="p-4 bg-muted/60 border-b border-border text-foreground flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <Badge variant="destructive" class="font-bold text-xs px-2.5 py-1">PDF</Badge>
-        <div>
-          <h3 class="text-sm font-semibold truncate max-w-xs md:max-w-md text-foreground">{{ document.title || document.filename }}</h3>
+      <div class="flex items-center gap-3 min-w-0">
+        <Badge variant="destructive" class="font-bold text-xs px-2.5 py-1 shrink-0">PDF</Badge>
+        <div class="min-w-0">
+          <h3 class="text-sm font-semibold truncate max-w-xs md:max-w-md text-foreground" :title="document.title || document.filename">
+            {{ document.title || document.filename }}
+          </h3>
           <div class="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-            <span>Kunjungan: #{{ document.kunjungan_id }}</span>
+            <span class="truncate max-w-[260px]" :title="document.description || `ID: #${document.id}`">
+              {{ document.description || `ID Dokumen: #${document.id}` }}
+            </span>
             <span>•</span>
-            <Badge v-if="document.tte_status === 'SIGNED_BSRE'" variant="outline" class="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
+            <Badge v-if="document.tte_status === 'SIGNED_BSRE'" variant="outline" class="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px] shrink-0">
               ✓ TTE BSrE BSSN Valid
             </Badge>
-            <Badge v-else variant="outline" class="text-amber-500 border-amber-500/30 text-[10px]">
-              Belum TTE Elektronik
+            <Badge v-else variant="outline" class="text-amber-500 border-amber-500/30 text-[10px] shrink-0">
+              Menunggu TTE
             </Badge>
           </div>
         </div>
@@ -69,14 +73,32 @@
       </div>
     </div>
 
-    <!-- TTE BSRE Banner Info (Tanpa menampilkan NIK rahasia) -->
-    <div v-if="document.tte_status === 'SIGNED_BSRE'" class="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 flex items-center justify-between text-xs text-emerald-400">
+    <!-- TTE BSRE Banner Info & Selector Versioning -->
+    <div v-if="document.tte_status === 'SIGNED_BSRE' || versionList.length > 1" class="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-500">
       <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Ditandatangani secara Elektronik oleh <strong>{{ document.tte_signer_name }}</strong></span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+        <span v-if="document.tte_status === 'SIGNED_BSRE'">
+          Ditandatangani secara Elektronik oleh <strong>{{ document.tte_signer_name }}</strong>
+        </span>
+        <span v-else class="text-amber-500 font-semibold">
+          Revisi v{{ currentVersion }}.0 Menunggu TTE Ulang (Versi sebelumnya telah di-TTE)
+        </span>
       </div>
-      <div class="text-[11px] text-emerald-400/80 font-mono hidden md:block">
-        SHA-256: {{ document.pdf_hash ? document.pdf_hash.substring(0, 16) + '...' : '-' }}
+
+      <!-- Tombol Pilih Versi Dokumen (v1.0, v2.0, dst.) -->
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] text-muted-foreground mr-1">Versi PDF:</span>
+        <Button
+          v-for="v in versionList"
+          :key="v.version"
+          size="sm"
+          :variant="selectedVersion === v.version ? 'default' : 'outline'"
+          class="h-6 px-2 text-[10px] font-mono rounded-md"
+          :title="v.summary || v.label"
+          @click="selectedVersion = v.version"
+        >
+          {{ v.label }}
+        </Button>
       </div>
     </div>
 
@@ -130,7 +152,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { documentApi } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -154,10 +176,48 @@ const activeTab = ref('preview')
 const pdfFrame = ref(null)
 const auditLogs = ref([])
 const loadingAudit = ref(false)
+const selectedVersion = ref(null)
+
+const parsedMeta = computed(() => {
+  if (!props.document?.metadata_json) return {}
+  try {
+    return JSON.parse(props.document.metadata_json)
+  } catch (e) {
+    return {}
+  }
+})
+
+const currentVersion = computed(() => Number(parsedMeta.value.version || 1))
+
+const versionList = computed(() => {
+  const history = Array.isArray(parsedMeta.value.revision_history) ? parsedMeta.value.revision_history : []
+  const items = history.map((h) => ({
+    version: Number(h.version),
+    label: `v${h.version}.0 (Arsip)`,
+    summary: h.summary || `Versi v${h.version}.0`
+  }))
+  items.push({
+    version: currentVersion.value,
+    label: `v${currentVersion.value}.0 (Terbaru)`,
+    summary: `Versi Terbaru v${currentVersion.value}.0`
+  })
+  return items.sort((a, b) => b.version - a.version)
+})
+
+watch(
+  () => props.document,
+  () => {
+    selectedVersion.value = currentVersion.value
+  },
+  { immediate: true }
+)
 
 const viewUrl = computed(() => {
   if (!props.document?.id) return ''
-  return `${documentApi.getViewUrl(props.document.id)}?t=${Date.now()}`
+  const ver = selectedVersion.value || currentVersion.value
+  const rawTitle = props.document.title || props.document.filename || 'dokumen'
+  const safeFilename = encodeURIComponent(rawTitle.replace(/[/\\?%*:|"<>]/g, '_')) + '.pdf'
+  return `${documentApi.getViewUrl(props.document.id)}/${safeFilename}?version=${ver}&t=${Date.now()}`
 })
 
 const downloadUrl = computed(() => {

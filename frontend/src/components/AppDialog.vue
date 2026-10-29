@@ -40,12 +40,12 @@ function onCancel() {
     :open="modelValue"
     @update:open="emit('update:modelValue', $event)"
   >
-    <DialogContent :class="['bg-white text-slate-800', maxWidth]">
+    <DialogContent :class="['bg-card text-foreground border-border shadow-2xl', maxWidth]">
       <DialogHeader>
-        <DialogTitle class="text-base font-bold text-slate-900">
+        <DialogTitle class="text-base font-bold text-foreground">
           <slot name="title">{{ title }}</slot>
         </DialogTitle>
-        <DialogDescription v-if="description || $slots.description" class="text-xs text-slate-500">
+        <DialogDescription v-if="description || $slots.description" class="text-xs text-muted-foreground">
           <slot name="description">{{ description }}</slot>
         </DialogDescription>
       </DialogHeader>

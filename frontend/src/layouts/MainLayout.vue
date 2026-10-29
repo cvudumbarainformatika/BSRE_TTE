@@ -1,50 +1,93 @@
 <template>
   <div class="h-screen overflow-hidden flex bg-background text-foreground font-sans">
-    <!-- SIDEBAR NAV (Mengikuti Desain ui-mantap.html) -->
-    <aside class="w-64 bg-sidebar border-r border-border hidden md:flex flex-col justify-between z-20 shrink-0 shadow-xs">
-      <div class="flex flex-col flex-1 overflow-y-auto">
-        <!-- Logo & Brand Header -->
-        <div class="p-5 flex items-center space-x-3 border-b border-border bg-sidebar">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg shadow-cyan-500/20">
+    <!-- SIDEBAR NAV (Mendukung Normal & Mini Sidebar Modern) -->
+    <aside
+      :class="[
+        'bg-sidebar border-r border-border hidden md:flex flex-col justify-between z-20 shrink-0 shadow-xs transition-all duration-300 ease-in-out',
+        isSidebarMini ? 'w-[72px]' : 'w-64'
+      ]"
+    >
+      <div class="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+        <!-- Logo & Brand Header (Klik Logo untuk Toggle Mini/Normal Sidebar) -->
+        <div
+          class="border-b border-border bg-sidebar transition-all duration-300"
+          :class="isSidebarMini ? 'p-3 flex justify-center' : 'p-5 flex items-center space-x-3'"
+        >
+          <button
+            type="button"
+            class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg shadow-cyan-500/20 shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none"
+            :title="isSidebarMini ? 'Klik untuk Melebarkan Sidebar' : 'Klik untuk Mempersempit (Mini Sidebar)'"
+            @click="toggleSidebar"
+          >
             <ShieldCheck class="w-6 h-6" />
-          </div>
-          <div>
-            <div class="font-bold text-sm tracking-wide text-foreground flex items-center gap-1.5">
-              E-ARCHIVE <Badge variant="outline" class="text-[10px] px-1.5 py-0 rounded bg-primary/10 text-primary border-primary/30">BSrE</Badge>
+          </button>
+          
+          <div v-show="!isSidebarMini" class="min-w-0 transition-opacity duration-200">
+            <div class="font-bold text-sm tracking-wide text-foreground flex items-center gap-1.5 whitespace-nowrap">
+              E-DOC <Badge variant="outline" class="text-[10px] px-1.5 py-0 rounded bg-primary/10 text-primary border-primary/30">BSrE</Badge>
             </div>
-            <p class="text-[10px] text-muted-foreground tracking-wider uppercase font-mono">BSSN Verified TTE</p>
+            <p class="text-[10px] text-muted-foreground tracking-wider uppercase font-mono whitespace-nowrap">BSSN Verified TTE</p>
           </div>
         </div>
 
-        <!-- Instansi Sub-Header -->
-        <div class="px-5 py-2.5 bg-muted/40 border-b border-border text-[11px] text-muted-foreground font-medium">
+        <!-- Instansi Sub-Header (Hanya di mode normal) -->
+        <div
+          v-show="!isSidebarMini"
+          class="px-5 py-2.5 bg-muted/40 border-b border-border text-[11px] text-muted-foreground font-medium truncate transition-all duration-200"
+        >
           UOBK RSUD dr. Mohamad Saleh
         </div>
 
-        <!-- Navigation Links (Modular via Button & Route Navigation) -->
-        <nav class="p-4 space-y-1.5 flex-1">
+        <!-- Navigation Links (Center Match saat Mini Sidebar) -->
+        <nav
+          class="space-y-1.5 flex-1 transition-all duration-300"
+          :class="isSidebarMini ? 'p-2 flex flex-col items-center' : 'p-4'"
+        >
           <Button
             v-for="item in navMenuItems"
             :key="item.id"
             :variant="activeNav === item.id ? 'secondary' : 'ghost'"
-            class="w-full justify-start gap-3 h-11 px-3 text-xs font-medium rounded-xl transition-all cursor-pointer"
-            :class="activeNav === item.id ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'"
+            class="transition-all cursor-pointer relative"
+            :class="[
+              isSidebarMini
+                ? 'w-11 h-11 p-0 flex items-center justify-center rounded-xl mx-auto'
+                : 'w-full justify-start gap-3 h-11 px-3 text-xs font-medium rounded-xl',
+              activeNav === item.id
+                ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+            ]"
+            :title="item.label"
             @click="navigateTo(item.id)"
           >
-            <component :is="item.icon" class="w-4 h-4 shrink-0" :class="activeNav === item.id ? 'text-primary' : 'text-muted-foreground'" />
-            <span class="truncate">{{ item.label }}</span>
+            <component
+              :is="item.icon"
+              :class="[
+                isSidebarMini ? 'w-5 h-5' : 'w-4 h-4 shrink-0',
+                activeNav === item.id ? 'text-primary' : 'text-muted-foreground'
+              ]"
+            />
+            <span v-if="!isSidebarMini" class="truncate">{{ item.label }}</span>
+            
+            <!-- Badge Angka di Mode Normal -->
             <Badge
-              v-if="item.id === 'inbox' && pendingCount > 0"
+              v-if="!isSidebarMini && item.id === 'inbox' && pendingCount > 0"
               class="ml-auto px-1.5 py-0.2 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full"
             >
               {{ pendingCount }}
             </Badge>
+
+            <!-- Lampu Dot Merah di Mode Mini -->
+            <span
+              v-if="isSidebarMini && item.id === 'inbox' && pendingCount > 0"
+              class="absolute top-2 right-2 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-sidebar animate-pulse"
+              :title="`${pendingCount} Dokumen Menunggu TTE`"
+            ></span>
           </Button>
         </nav>
       </div>
 
-      <!-- BSrE Status Badge at Bottom Sidebar (ui-mantap.html) -->
-      <div class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10">
+      <!-- BSrE Status Footer at Bottom Sidebar (Mode Normal vs Mode Mini Berlampu Kedip) -->
+      <div v-if="!isSidebarMini" class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -56,6 +99,18 @@
           ID Sertifikat: <span class="font-mono text-foreground font-semibold">BSRE-20261027-83FC</span>
         </p>
         <p class="text-[10px] text-muted-foreground mt-0.5">RSA 2048 • Exp: 14 Nov 2027</p>
+      </div>
+
+      <!-- Indikator Lampu Kedip Futuristik Center saat Mini Sidebar -->
+      <div
+        v-else
+        class="my-4 mx-auto p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center cursor-pointer hover:bg-emerald-500/20 transition-all shadow-xs"
+        title="BSrE Service Connected (Online) • ID: BSRE-20261027-83FC • RSA 2048"
+      >
+        <div class="relative flex items-center justify-center w-5 h-5">
+          <span class="absolute w-4 h-4 rounded-full bg-emerald-500 animate-ping opacity-75"></span>
+          <span class="relative w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+        </div>
       </div>
     </aside>
 
@@ -69,7 +124,7 @@
             <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-sm">
               <ShieldCheck class="w-5 h-5" />
             </div>
-            <span class="font-bold text-xs tracking-wide">E-ARCHIVE BSrE</span>
+            <span class="font-bold text-xs tracking-wide">E-DOC BSrE</span>
           </div>
 
           <!-- Indikator Integrasi E-RM -->
@@ -79,22 +134,13 @@
           </div>
         </div>
 
-        <!-- Right Controls: Role Switcher, Dark/Light Mode, Notif, User Profile -->
+        <!-- Right Controls: Status Portal Global, Dark/Light Mode, Notif -->
         <div class="flex items-center space-x-2 sm:space-x-3">
-          <!-- Role Switcher Modular -->
-          <div class="hidden sm:flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border text-xs">
-            <span class="text-[11px] text-muted-foreground font-semibold px-2">Role:</span>
-            <Button
-              v-for="r in roles"
-              :key="r.id"
-              size="sm"
-              :variant="activeUser?.username === r.username ? 'default' : 'ghost'"
-              class="h-7 px-2.5 text-xs rounded-md"
-              @click="switchRole(r)"
-            >
-              {{ r.label }}
-            </Button>
-          </div>
+          <!-- Badge Mode Global -->
+          <Badge variant="outline" class="hidden sm:flex items-center gap-1.5 px-3 py-1 text-[11px] bg-primary/10 text-primary border-primary/30 rounded-lg font-semibold">
+            <ShieldCheck class="w-3.5 h-3.5" />
+            <span>Mode Global • Otorisasi & Arsip TTE</span>
+          </Badge>
 
           <!-- Dark / Light Mode Toggle Button -->
           <Button
@@ -134,7 +180,7 @@
               <div class="flex items-center justify-between pb-3 border-b border-border">
                 <div class="font-bold text-foreground text-sm flex items-center gap-1.5">
                   <Bell class="w-4 h-4 text-amber-500" />
-                  <span>Notifikasi TTE BSrE</span>
+                  <span>Notifikasi Antrean TTE</span>
                 </div>
                 <Badge variant="destructive" class="text-[10px]">
                   {{ pendingCount }} Menunggu TTE
@@ -166,7 +212,7 @@
                       class="h-7 px-3 bg-primary text-primary-foreground text-[10px] font-bold rounded-lg"
                       @click="goToBatchSign()"
                     >
-                      Buka Antrean & Sign Sekarang →
+                      Buka Inbox TTE →
                     </Button>
                   </div>
                 </div>
@@ -178,19 +224,6 @@
                 </Button>
               </div>
             </Card>
-          </div>
-
-          <div class="h-6 w-px bg-border"></div>
-
-          <!-- User Profile Pill -->
-          <div class="flex items-center gap-2 pl-1">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border border-primary/30 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-              {{ activeUser?.nama?.charAt(0) || 'D' }}
-            </div>
-            <div class="text-left hidden lg:block">
-              <div class="text-xs font-bold text-foreground leading-none truncate max-w-[170px]">{{ activeUser?.nama }}</div>
-              <div class="text-[10px] text-muted-foreground capitalize mt-0.5">{{ activeUser?.role }} DPJP</div>
-            </div>
           </div>
         </div>
       </header>
@@ -249,6 +282,12 @@ const navMenuItems = [
 
 const activeNav = ref('dashboard') // Menu pertama yang aktif adalah dashboard!
 const isDark = ref(false) // Default Light Mode!
+const isSidebarMini = ref(localStorage.getItem('sidebar-mini') === 'true')
+
+const toggleSidebar = () => {
+  isSidebarMini.value = !isSidebarMini.value
+  localStorage.setItem('sidebar-mini', isSidebarMini.value ? 'true' : 'false')
+}
 
 const activeUser = ref({
   id: 1,

@@ -18,6 +18,7 @@ from app.Services.BsreTteService import bsre_service
 from app.Services.SimrsMysqlReadService import simrs_mysql_service
 from app.Services.VectorSearchService import vector_service
 from app.Services.AuditService import audit_service
+from app.Services.WebSocketService import dispatch_ws_event
 from app.Http.Middleware.AuthMiddleware import get_current_user
 from app.Http.Requests.DocumentRequests import (
     SimrsAutoIngestRequest,
@@ -114,13 +115,78 @@ def trigger_sync_surat_kematian_mysql(
         raise HTTPException(status_code=500, detail=f"Gagal sinkronisasi MySQL SIMRS: {str(e)}")
 
 
+def _build_data_fingerprint(payload: dict) -> str:
+    """Membentuk fingerprint data klinis utama untuk mendeteksi adanya revisi/perubahan di SIMRS."""
+    if not payload:
+        return ""
+    dok = payload.get("dokter") or payload.get("dpjp") or {}
+    parts = [
+        str(payload.get("nosrtmeninggal") or payload.get("nomor_surat") or "").strip().lower(),
+        str(payload.get("jamMeninggal") or payload.get("jam_meninggal") or "").strip()[:5].lower(),
+        str(payload.get("diagnosa") or payload.get("sebabkematian_ket") or "").strip().lower(),
+        str(dok.get("nama") or "").strip().lower(),
+    ]
+    return "|".join(parts)
+
+
+def _prepare_versioned_payload(existing_doc: Optional[Document], new_payload: dict) -> tuple:
+    """
+    Mengelola versioning dokumen secara otomatis:
+    - Jika existing_doc sudah SIGNED_BSRE, arsipkan PDF lama ke revision_history dan naikkan versi (v2.0, v3.0, dst).
+    - Jika existing_doc masih UNSIGNED (di Inbox), timpa draft pada versi yang sama.
+    """
+    prev_version = 1
+    revision_history = []
+    was_signed = False
+
+    if existing_doc and existing_doc.metadata_json:
+        try:
+            old_meta = json.loads(existing_doc.metadata_json)
+            prev_version = int(old_meta.get("version", 1))
+            revision_history = list(old_meta.get("revision_history", []))
+        except Exception:
+            prev_version = 1
+            revision_history = []
+            old_meta = {}
+    else:
+        old_meta = {}
+
+    if existing_doc and existing_doc.tte_status == "SIGNED_BSRE":
+        was_signed = True
+        revision_entry = {
+            "version": prev_version,
+            "version_label": f"v{prev_version}.0",
+            "filename": existing_doc.filename,
+            "storage_path": existing_doc.storage_path,
+            "pdf_hash": existing_doc.pdf_hash,
+            "signed_at": existing_doc.tte_signed_at.isoformat() if existing_doc.tte_signed_at else None,
+            "signer_name": existing_doc.tte_signer_name or existing_doc.target_signer_name,
+            "bsre_id": existing_doc.tte_bsre_id,
+            "summary": (
+                f"No: {old_meta.get('nosrtmeninggal', '-')} • "
+                f"Jam: {str(old_meta.get('jamMeninggal', '-'))[:5]} • "
+                f"Diagnosa: {old_meta.get('diagnosa', '-')}"
+            )
+        }
+        revision_history.append(revision_entry)
+        new_version = prev_version + 1
+    else:
+        new_version = prev_version
+
+    new_payload["version"] = new_version
+    new_payload["version_label"] = f"v{new_version}.0"
+    new_payload["revision_history"] = revision_history
+    new_payload["data_fingerprint"] = _build_data_fingerprint(new_payload)
+    return new_version, revision_history, was_signed
+
+
 @router.get("/ranap/surat-kematian/status")
 def get_surat_kematian_ranap_status(
     noreg: str,
     db: Session = Depends(get_session)
 ):
     """
-    Mengecek status TTE BSrE Surat Keterangan Kematian Ranap berdasarkan Noreg SIMRS.
+    Mengecek status TTE BSrE & versi Surat Keterangan Kematian Ranap berdasarkan Noreg SIMRS.
     """
     kunjungan_id = _extract_numeric_id(noreg)
     docs = db.exec(
@@ -138,10 +204,30 @@ def get_surat_kematian_ranap_status(
             "noreg": noreg,
             "kunjungan_id": kunjungan_id,
             "tte_status": "NOT_FINALIZED",
+            "version": 1,
+            "version_label": "v1.0",
+            "revision_history": [],
+            "signed_snapshot": None,
             "message": "Surat Kematian belum tersinkron ke layanan TTE BSrE."
         }
 
     latest_doc = docs[0]
+    meta = {}
+    if latest_doc.metadata_json:
+        try:
+            meta = json.loads(latest_doc.metadata_json)
+        except Exception:
+            meta = {}
+
+    ver = int(meta.get("version", 1))
+    dok_meta = meta.get("dokter") or meta.get("dpjp") or {}
+    signed_snapshot = {
+        "nosrtmeninggal": meta.get("nosrtmeninggal") or meta.get("nomor_surat") or "",
+        "jamMeninggal": str(meta.get("jamMeninggal") or meta.get("jam_meninggal") or "")[:5],
+        "diagnosa": meta.get("diagnosa") or meta.get("sebabkematian_ket") or "",
+        "dokter_nama": dok_meta.get("nama") or latest_doc.target_signer_name or ""
+    }
+
     return {
         "exists": True,
         "noreg": noreg,
@@ -149,6 +235,10 @@ def get_surat_kematian_ranap_status(
         "document_id": latest_doc.id,
         "tte_status": latest_doc.tte_status,
         "status": latest_doc.status,
+        "version": ver,
+        "version_label": f"v{ver}.0",
+        "revision_history": meta.get("revision_history", []),
+        "signed_snapshot": signed_snapshot,
         "tte_signed_at": latest_doc.tte_signed_at,
         "tte_signer_name": latest_doc.tte_signer_name,
         "pdf_hash": latest_doc.pdf_hash,
@@ -166,12 +256,12 @@ def finalize_surat_kematian_ranap(
     db: Session = Depends(get_session)
 ):
     """
-    Finalisasi & TTE BSrE untuk Dokumen Surat Keterangan Kematian Rawat Inap.
+    Finalisasi, Kirim ke Inbox, atau TTE / TTE Ulang (Revisi v2.0+) untuk Surat Keterangan Kematian Rawat Inap.
     """
     kunjungan_id = _extract_numeric_id(req.noreg, 50999)
     pasien_id = _extract_numeric_id(req.norm, 280999)
 
-    signer_nik = req.signer_nik or req.dpjp.get("nik") or settings.BSRE_DEV_NIK
+    signer_nik = req.dpjp.get("nik") or req.signer_nik or (settings.BSRE_DEV_NIK if settings.BSRE_MOCK_MODE else "")
     signer_nip = req.dpjp.get("nip") or ""
     signer_name = req.dpjp.get("nama") or "dr. RIA NURMALA SETYANINGRUM"
 
@@ -179,21 +269,18 @@ def finalize_surat_kematian_ranap(
         if not req.passphrase or len(req.passphrase.strip()) < 3:
             raise HTTPException(
                 status_code=400,
-                detail="Passphrase BSrE tidak boleh kosong! Harap masukkan Passphrase BSrE Anda."
+                detail=f"Otorisasi BSrE Gagal: Passphrase BSrE tidak boleh kosong untuk penandatangan {signer_name}."
             )
-        if not settings.BSRE_MOCK_MODE and req.passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+        if settings.BSRE_MOCK_MODE and req.passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
             raise HTTPException(
                 status_code=400,
-                detail="Passphrase BSrE salah! Silakan masukkan Passphrase BSrE yang terdaftar."
+                detail=f"Otorisasi BSrE Gagal: Passphrase BSrE yang Anda masukkan salah untuk penandatangan {signer_name}."
             )
 
     doc_dir = os.path.join(settings.BASE_STORAGE_PATH, "documents", "ranap_kematian", str(kunjungan_id))
     os.makedirs(doc_dir, exist_ok=True)
 
-    filename = f"SURAT_KEMATIAN_RANAP_{kunjungan_id}_{pasien_id}_{uuid.uuid4().hex[:6]}.pdf"
-    file_path = os.path.join(doc_dir, filename)
-
-    # Perkaya data otomatis dari MySQL SIMRS jika tersedia agar PDF 100% presisi
+    # Perkaya data dasar dari MySQL SIMRS lalu timpa dengan perubahan terbaru dari request (req)
     mysql_rec = None
     try:
         records = simrs_mysql_service.fetch_surat_kematian_ranap(limit=5, search=req.noreg)
@@ -219,38 +306,63 @@ def finalize_surat_kematian_ranap(
     if mysql_rec:
         signer_name = req.dpjp.get("nama") or mysql_rec["dokter"].get("nama") or signer_name
         signer_nip = req.dpjp.get("nip") or mysql_rec["dokter"].get("nip") or signer_nip
-
-    content_payload = mysql_rec if mysql_rec else {
-        "kunjungan_id": kunjungan_id,
-        "noreg": req.noreg,
-        "norm": req.norm,
-        "judul": "SURAT KETERANGAN KEMATIAN",
-        "nosrtmeninggal": nomor_surat,
-        "nomor_surat": nomor_surat,
-        "tgl_meninggal": req.tglkeluar or req.pasien.get("tglkeluar") or datetime.now().strftime("%d %B %Y"),
-        "jamMeninggal": req.jamMeninggal or "08:47",
-        "jam_meninggal": req.jamMeninggal or "08:47",
-        "diagnosa": req.diagnosa or req.pasien.get("sebabkematian") or "Cardiac arrest, unspecified",
-        "sebabkematian_ket": req.diagnosa or req.pasien.get("sebabkematian") or "Cardiac arrest, unspecified",
-        "pasien": req.pasien,
-        "dpjp": req.dpjp,
-        "dokter": {
-            "nama": signer_name,
-            "nip": signer_nip,
-            "nik": signer_nik,
-            "golongan": req.dpjp.get("golongan", "IV/a"),
-            "ket_golongan": req.dpjp.get("ket_golongan", "Pembina"),
-            "ket_jabatan": req.dpjp.get("ket_jabatan", "Dokter Madya")
+        signer_nik = req.dpjp.get("nik") or mysql_rec["dokter"].get("nik") or signer_nik
+        content_payload = dict(mysql_rec)
+        if req.nosrtmeninggal:
+            content_payload["nosrtmeninggal"] = req.nosrtmeninggal
+            content_payload["nomor_surat"] = req.nosrtmeninggal
+        if req.jamMeninggal:
+            content_payload["jamMeninggal"] = req.jamMeninggal
+            content_payload["jam_meninggal"] = req.jamMeninggal
+        if req.diagnosa and req.diagnosa != "-":
+            content_payload["diagnosa"] = req.diagnosa
+            content_payload["sebabkematian_ket"] = req.diagnosa
+        if req.tglkeluar:
+            content_payload["tgl_meninggal"] = req.tglkeluar
+        if req.dpjp and req.dpjp.get("nama"):
+            content_payload["dokter"] = {
+                **content_payload.get("dokter", {}),
+                "nama": signer_name,
+                "nip": signer_nip,
+                "nik": signer_nik
+            }
+    else:
+        content_payload = {
+            "kunjungan_id": kunjungan_id,
+            "noreg": req.noreg,
+            "norm": req.norm,
+            "judul": "SURAT KETERANGAN KEMATIAN",
+            "nosrtmeninggal": nomor_surat,
+            "nomor_surat": nomor_surat,
+            "tgl_meninggal": req.tglkeluar or req.pasien.get("tglkeluar") or datetime.now().strftime("%d %B %Y"),
+            "jamMeninggal": req.jamMeninggal or "08:47",
+            "jam_meninggal": req.jamMeninggal or "08:47",
+            "diagnosa": req.diagnosa or req.pasien.get("sebabkematian") or "Cardiac arrest, unspecified",
+            "sebabkematian_ket": req.diagnosa or req.pasien.get("sebabkematian") or "Cardiac arrest, unspecified",
+            "pasien": req.pasien,
+            "dpjp": req.dpjp,
+            "dokter": {
+                "nama": signer_name,
+                "nip": signer_nip,
+                "nik": signer_nik,
+                "golongan": req.dpjp.get("golongan", "IV/a"),
+                "ket_golongan": req.dpjp.get("ket_golongan", "Pembina"),
+                "ket_jabatan": req.dpjp.get("ket_jabatan", "Dokter Madya")
+            }
         }
-    }
 
-    # Cek apakah sudah ada dokumen sebelumnya untuk kunjungan_id ini
     existing_doc = db.exec(
         select(Document).where(
             Document.document_type == "surat_kematian",
             Document.kunjungan_id == kunjungan_id
         ).order_by(Document.uploaded_at.desc())
     ).first()
+
+    new_version, revision_history, was_signed = _prepare_versioned_payload(existing_doc, content_payload)
+    ver_label = f"v{new_version}.0"
+
+    filename = f"SURAT_KEMATIAN_RANAP_{kunjungan_id}_{pasien_id}_v{new_version}_{uuid.uuid4().hex[:5]}.pdf"
+    file_path = os.path.join(doc_dir, filename)
 
     pdf_service.generate_surat_kematian_pdf(content_payload, file_path, is_signed=False)
     file_size = os.path.getsize(file_path)
@@ -271,9 +383,14 @@ def finalize_surat_kematian_ranap(
         doc.storage_path = file_path
         doc.original_path = file_path
         doc.file_size = file_size
+        doc.uploaded_at = datetime.now(timezone.utc)
+        doc.description = f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name} ({ver_label})"
         doc.target_signer_name = signer_name
+        doc.target_signer_nip = signer_nip or signer_nik
         doc.metadata_json = json.dumps(content_payload)
         doc.pdf_hash = doc_hash
+        doc.tte_status = "UNSIGNED"
+        doc.status = "pending"
     else:
         doc = Document(
             kunjungan_id=kunjungan_id,
@@ -286,9 +403,9 @@ def finalize_surat_kematian_ranap(
             uploaded_by=uploader_id,
             uploaded_at=datetime.now(timezone.utc),
             status="pending",
-            description=f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name}",
+            description=f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name} ({ver_label})",
             file_size=file_size,
-            target_signer_nip=signer_nik,
+            target_signer_nip=signer_nip or signer_nik,
             target_signer_name=signer_name,
             tte_status="UNSIGNED",
             pdf_hash=doc_hash,
@@ -305,18 +422,21 @@ def finalize_surat_kematian_ranap(
         qr_dir = os.path.join(settings.BASE_STORAGE_PATH, "qr_codes")
         os.makedirs(qr_dir, exist_ok=True)
 
-        sign_result = bsre_service.sign_document(
-            input_pdf_path=file_path,
-            output_pdf_path=signed_path,
-            signer_name=signer_name,
-            signer_nik=signer_nik,
-            signer_nip=signer_nip,
-            doc_id=doc.id,
-            passphrase=req.passphrase.strip(),
-            metadata_payload=content_payload
-        )
+        try:
+            sign_result = bsre_service.sign_document(
+                input_pdf_path=file_path,
+                output_pdf_path=signed_path,
+                signer_name=signer_name,
+                signer_nik=signer_nik,
+                signer_nip=signer_nip,
+                doc_id=doc.id,
+                passphrase=req.passphrase.strip(),
+                metadata_payload=content_payload
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-        qr_path = os.path.join(qr_dir, f"qr_doc_{doc.id}.png")
+        qr_path = os.path.join(qr_dir, f"qr_doc_{doc.id}_v{new_version}.png")
         verify_url = bsre_service.generate_qr_verification(doc.id, signer_nik, signer_name, qr_path, metadata_payload=content_payload)
 
         doc.storage_path = signed_path
@@ -348,21 +468,40 @@ def finalize_surat_kematian_ranap(
         db.commit()
         db.refresh(doc)
 
+        action_name = f"RE_SIGN_TTE_BSRE ({ver_label})" if was_signed else f"SIGN_TTE_BSRE ({ver_label})"
         audit_service.log(
             db=db,
             document_id=doc.id,
             user_id=uploader_id,
-            username=target_user.username if target_user else "simrs_ranap",
-            user_role="dokter",
-            action="RANAP_SURAT_KEMATIAN_DIRECT_TTE_BSRE",
+            username=signer_name,
+            user_role="Penandatangan TTE",
+            action=action_name,
             ip_address=request.client.host if request.client else None,
             user_agent=request.headers.get("user-agent"),
-            details={"noreg": req.noreg, "nosrtmeninggal": nomor_surat, "bsre_id": sign_result["bsre_id"]}
+            details={
+                "version": ver_label,
+                "noreg": req.noreg,
+                "nomor_dokumen": nomor_surat,
+                "bsre_id": sign_result["bsre_id"],
+                "signer_name": signer_name,
+                "signer_nip": signer_nip
+            }
+        )
+
+        # Broadcast WebSocket ke SIMRS Web & Mobile App (Signed)
+        dispatch_ws_event(
+            event_type="DOCUMENT_SIGNED",
+            noreg=req.noreg,
+            document_id=doc.id,
+            version_label=ver_label,
+            extra={"signer_name": signer_name, "title": doc.title}
         )
 
         return {
-            "message": f"Surat Keterangan Kematian ({nomor_surat}) berhasil ditandatangani secara elektronik BSrE BSSN!",
+            "message": f"Surat Keterangan Kematian ({ver_label}) berhasil ditandatangani secara elektronik oleh {signer_name}!",
             "tte_status": "SIGNED_BSRE",
+            "version": new_version,
+            "version_label": ver_label,
             "document_id": doc.id,
             "preview_url": f"/api/v1/document/{doc.id}/view",
             "download_url": f"/api/v1/document/{doc.id}/download",
@@ -370,9 +509,44 @@ def finalize_surat_kematian_ranap(
             "data": doc
         }
 
+    inbox_action = f"REVISE_TO_INBOX_TTE ({ver_label})" if was_signed else f"SEND_TO_INBOX_TTE ({ver_label})"
+    audit_service.log(
+        db=db,
+        document_id=doc.id,
+        user_id=uploader_id,
+        username=signer_name,
+        user_role="E-RM",
+        action=inbox_action,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        details={
+            "version": ver_label,
+            "noreg": req.noreg,
+            "nomor_dokumen": nomor_surat,
+            "target_signer": signer_name
+        }
+    )
+
+    msg = (
+        f"Revisi {ver_label} Surat Keterangan Kematian ({nomor_surat}) berhasil dikirim ke Inbox TTE ({signer_name}) untuk di-TTE ulang."
+        if was_signed
+        else f"Surat Keterangan Kematian ({nomor_surat}) berhasil dikirim ke Inbox TTE ({signer_name})."
+    )
+
+    # Broadcast WebSocket ke SIMRS Web & Mobile App (Pending/Inbox)
+    dispatch_ws_event(
+        event_type="DOCUMENT_PENDING",
+        noreg=req.noreg,
+        document_id=doc.id,
+        version_label=ver_label,
+        extra={"target_signer": signer_name, "title": doc.title}
+    )
+
     return {
-        "message": f"Surat Keterangan Kematian ({nomor_surat}) tersimpan di Signature Inbox.",
+        "message": msg,
         "tte_status": "UNSIGNED",
+        "version": new_version,
+        "version_label": ver_label,
         "document_id": doc.id,
         "preview_url": f"/api/v1/document/{doc.id}/view",
         "download_url": f"/api/v1/document/{doc.id}/download",
@@ -389,9 +563,12 @@ def pulangkan_pasien_ranap(
     """
     Dipanggil otomatis dari SIMRS saat memulangkan pasien rawat inap:
     - Jika pasien pulang dalam keadaan meninggal (carakeluar == 'C003'):
-      1. Cek apakah dokumen Surat Kematian untuk noreg ini sudah di-TTE di menu dokumen.
-      2. Jika SUDAH DI-TTE (SIGNED_BSRE): Tidak perlu kirim ke Inbox lagi.
-      3. Jika BELUM DI-TTE: Otomatis buat draft PDF dan kirimkan HANYA ke Inbox TTE Dokter.
+      1. Ambil data terbaru dari MySQL SIMRS + payload request.
+      2. Jika dokumen SUDAH DI-TTE (SIGNED_BSRE):
+         - Cek apakah ada perubahan data (jam meninggal, diagnosa, no surat, atau dokter).
+         - Jika TIDAK ada perubahan: Tidak perlu kirim ke Inbox lagi (ALREADY_SIGNED).
+         - Jika ADA perubahan data: Otomatis buat Revisi baru (v2.0+) dan masukkan ke Inbox TTE!
+      3. Jika BELUM DI-TTE: Otomatis buat/perbarui draft PDF di Inbox TTE.
     """
     is_meninggal = (
         (req.carakeluar and req.carakeluar.upper() == "C003") or
@@ -415,18 +592,7 @@ def pulangkan_pasien_ranap(
         ).order_by(Document.uploaded_at.desc())
     ).first()
 
-    if existing_doc and existing_doc.tte_status == "SIGNED_BSRE":
-        return {
-            "success": True,
-            "status": "ALREADY_SIGNED",
-            "message": f"Dokumen Surat Kematian ({existing_doc.title}) sudah berstatus Sah TTE BSrE, tidak dikirim ke Inbox lagi.",
-            "document_id": existing_doc.id,
-            "tte_status": "SIGNED_BSRE",
-            "is_inbox_sent": False,
-            "data": existing_doc
-        }
-
-    # Coba ambil data lengkap dari MySQL SIMRS berdasarkan noreg
+    # Ambil data lengkap dari MySQL SIMRS berdasarkan noreg lalu gabungkan dengan input terbaru
     mysql_rec = None
     try:
         records = simrs_mysql_service.fetch_surat_kematian_ranap(limit=5, search=req.noreg)
@@ -443,11 +609,20 @@ def pulangkan_pasien_ranap(
         pasien_id = mysql_rec["pasien_id"]
         norm_val = mysql_rec["norm"]
         nama_pasien = mysql_rec["pasien"].get("nama") or req.nama_pasien or "Pasien Ranap"
-        nomor_surat = mysql_rec.get("nosrtmeninggal") or req.nosrtmeninggal or f"472.12/{str(kunjungan_id)[-4:]}/425.102.8/KEM/X/2026"
-        signer_name = mysql_rec["dokter"].get("nama") or "dr. RIA NURMALA SETYANINGRUM"
-        signer_nip = mysql_rec["dokter"].get("nip") or ""
-        signer_nik = mysql_rec["dokter"].get("nik") or settings.BSRE_DEV_NIK
-        content_payload = mysql_rec
+        nomor_surat = req.nosrtmeninggal or mysql_rec.get("nosrtmeninggal") or f"472.12/{str(kunjungan_id)[-4:]}/425.102.8/KEM/X/2026"
+        signer_name = (req.dpjp or {}).get("nama") or mysql_rec["dokter"].get("nama") or "dr. RIA NURMALA SETYANINGRUM"
+        signer_nip = (req.dpjp or {}).get("nip") or mysql_rec["dokter"].get("nip") or ""
+        signer_nik = (req.dpjp or {}).get("nik") or mysql_rec["dokter"].get("nik") or settings.BSRE_DEV_NIK
+        content_payload = dict(mysql_rec)
+        if req.nosrtmeninggal:
+            content_payload["nosrtmeninggal"] = req.nosrtmeninggal
+            content_payload["nomor_surat"] = req.nosrtmeninggal
+        if req.jamMeninggal:
+            content_payload["jamMeninggal"] = req.jamMeninggal
+            content_payload["jam_meninggal"] = req.jamMeninggal
+        if req.diagnosa and req.diagnosa != "-":
+            content_payload["diagnosa"] = req.diagnosa
+            content_payload["sebabkematian_ket"] = req.diagnosa
     else:
         norm_val = req.norm or "000000"
         pasien_id = _extract_numeric_id(norm_val, 280999)
@@ -492,9 +667,33 @@ def pulangkan_pasien_ranap(
             }
         }
 
+    # Jika sudah SIGNED_BSRE, cek apakah ada perubahan data dibanding versi yang telah di-TTE
+    if existing_doc and existing_doc.tte_status == "SIGNED_BSRE":
+        old_fp = ""
+        if existing_doc.metadata_json:
+            try:
+                old_meta = json.loads(existing_doc.metadata_json)
+                old_fp = old_meta.get("data_fingerprint") or _build_data_fingerprint(old_meta)
+            except Exception:
+                old_fp = ""
+        new_fp = _build_data_fingerprint(content_payload)
+        if old_fp and old_fp == new_fp:
+            return {
+                "success": True,
+                "status": "ALREADY_SIGNED",
+                "message": f"Dokumen Surat Kematian ({existing_doc.title}) sudah berstatus Sah TTE BSrE dan tidak ada perubahan data.",
+                "document_id": existing_doc.id,
+                "tte_status": "SIGNED_BSRE",
+                "is_inbox_sent": False,
+                "data": existing_doc
+            }
+
+    new_version, revision_history, was_signed = _prepare_versioned_payload(existing_doc, content_payload)
+    ver_label = f"v{new_version}.0"
+
     doc_dir = os.path.join(settings.BASE_STORAGE_PATH, "documents", "ranap_kematian", str(kunjungan_id))
     os.makedirs(doc_dir, exist_ok=True)
-    filename = f"SURAT_KEMATIAN_RANAP_{kunjungan_id}_{pasien_id}_{uuid.uuid4().hex[:6]}.pdf"
+    filename = f"SURAT_KEMATIAN_RANAP_{kunjungan_id}_{pasien_id}_v{new_version}_{uuid.uuid4().hex[:5]}.pdf"
     file_path = os.path.join(doc_dir, filename)
 
     pdf_service.generate_surat_kematian_pdf(content_payload, file_path, is_signed=False)
@@ -515,6 +714,8 @@ def pulangkan_pasien_ranap(
         doc.storage_path = file_path
         doc.original_path = file_path
         doc.file_size = file_size
+        doc.uploaded_at = datetime.now(timezone.utc)
+        doc.description = f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name} ({ver_label})"
         doc.target_signer_name = signer_name
         doc.target_signer_nip = signer_nip or signer_nik
         doc.metadata_json = json.dumps(content_payload)
@@ -533,7 +734,7 @@ def pulangkan_pasien_ranap(
             uploaded_by=uploader_id,
             uploaded_at=datetime.now(timezone.utc),
             status="pending",
-            description=f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name}",
+            description=f"No. Surat: {nomor_surat} • Noreg: {req.noreg} • Dokter: {signer_name} ({ver_label})",
             file_size=file_size,
             target_signer_nip=signer_nip or signer_nik,
             target_signer_name=signer_name,
@@ -546,20 +747,60 @@ def pulangkan_pasien_ranap(
     db.commit()
     db.refresh(doc)
 
+    action_label = f"REVISE_TO_INBOX_TTE ({ver_label})" if was_signed else f"SEND_TO_INBOX_TTE ({ver_label})"
+    audit_service.log(
+        db=db,
+        document_id=doc.id,
+        user_id=uploader_id,
+        username=signer_name,
+        user_role="E-RM",
+        action=action_label,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        details={
+            "version": ver_label,
+            "noreg": req.noreg,
+            "nomor_dokumen": nomor_surat,
+            "target_signer": signer_name,
+            "reason": "Perubahan data kepulangan/surat kematian di E-RM" if was_signed else "Pulangkan pasien meninggal (C003)"
+        }
+    )
+
+    notif_title = f"Revisi {ver_label} Surat Kematian Masuk ke Inbox TTE" if was_signed else "Surat Kematian Masuk ke Inbox TTE"
+    notif_msg = (
+        f"Data Surat Kematian pasien {nama_pasien} (RM: {norm_val}) diperbarui di E-RM. Draft Revisi {ver_label} menunggu TTE ulang."
+        if was_signed
+        else f"Pasien {nama_pasien} (RM: {norm_val}) dipulangkan meninggal. Surat Kematian otomatis masuk ke Inbox TTE."
+    )
     notif = UserNotification(
         user_id=uploader_id,
-        title="Surat Kematian Masuk ke Inbox TTE",
-        message=f"Pasien {nama_pasien} (RM: {norm_val}) dipulangkan meninggal. Surat Kematian otomatis masuk ke Inbox TTE Anda.",
+        title=notif_title,
+        message=notif_msg,
         document_id=doc.id,
         is_read=False
     )
     db.add(notif)
     db.commit()
 
+    # Broadcast WebSocket ke SIMRS Web & Mobile App (Pending/Inbox via Pulangkan Pasien)
+    dispatch_ws_event(
+        event_type="DOCUMENT_PENDING",
+        noreg=req.noreg,
+        document_id=doc.id,
+        version_label=ver_label,
+        extra={"target_signer": signer_name, "title": doc.title}
+    )
+
     return {
         "success": True,
-        "status": "SENT_TO_INBOX",
-        "message": f"Surat Keterangan Kematian pasien {nama_pasien} otomatis dikirim ke Inbox TTE ({signer_name}).",
+        "status": "REVISED_TO_INBOX" if was_signed else "SENT_TO_INBOX",
+        "version": new_version,
+        "version_label": ver_label,
+        "message": (
+            f"Perubahan data terdeteksi! Revisi {ver_label} Surat Keterangan Kematian ({nama_pasien}) otomatis dikirim ke Inbox TTE ({signer_name})."
+            if was_signed
+            else f"Surat Keterangan Kematian pasien {nama_pasien} otomatis dikirim ke Inbox TTE ({signer_name})."
+        ),
         "document_id": doc.id,
         "tte_status": "UNSIGNED",
         "is_inbox_sent": True,

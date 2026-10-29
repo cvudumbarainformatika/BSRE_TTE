@@ -5,12 +5,14 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from fastapi import WebSocket, WebSocketDisconnect
 
 from config.settings import settings
 from config.database import init_db
 from routes.api import api_router
 from app.Http.Middleware.SecurityHeadersMiddleware import SecurityHeadersMiddleware
 from app.Http.Middleware.RateLimitMiddleware import limiter
+from app.Services.WebSocketService import ws_manager
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -42,6 +44,21 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 # 5. Include API Routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# 6. Real-time WebSocket Hub (Terpusat untuk SIMRS Web, Mobile React Native, dan SSO)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            # Terima pesan ping/heartbeat dari client jika ada
+            text = await websocket.receive_text()
+            if text == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
 
 @app.on_event("startup")
 def on_startup():

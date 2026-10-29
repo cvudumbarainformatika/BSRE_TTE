@@ -41,7 +41,7 @@ class SuratKematianRanapRequest(BaseModel):
     passphrase: Optional[str] = None
 
 class TteSignRequest(BaseModel):
-    document_id: int
+    document_id: Optional[int] = None
     passphrase: Optional[str] = "Bsre2026.#!"
     catatan: Optional[str] = None
 

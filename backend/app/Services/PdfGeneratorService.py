@@ -111,9 +111,24 @@ class PdfGeneratorService:
         - Footer wajib BSrE BSSN di bagian paling bawah setiap halaman PDF.
         """
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Metadata resmi dokumen PDF agar judul di browser PDF viewer tidak 'anonymous'
+        nama_pasien = ""
+        if data.get("pasien") and isinstance(data["pasien"], dict):
+            nama_pasien = data["pasien"].get("nama") or ""
+        elif data.get("nama_pasien"):
+            nama_pasien = data.get("nama_pasien")
+        doc_title = data.get("judul") or "Surat Keterangan Kematian"
+        full_title = f"{doc_title} - {nama_pasien}" if nama_pasien else doc_title
+        no_surat = data.get("nosrtmeninggal") or data.get("nomor_surat") or ""
+
         doc = SimpleDocTemplate(
             output_path,
             pagesize=A4,
+            title=full_title,
+            author="UOBK RSUD DOKTER MOHAMAD SALEH",
+            subject=f"No. Dokumen: {no_surat}" if no_surat else doc_title,
+            creator="Sistem E-Archive TTE BSrE BSSN",
             leftMargin=2.0 * cm,
             rightMargin=2.0 * cm,
             topMargin=1.5 * cm,

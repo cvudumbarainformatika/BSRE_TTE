@@ -82,6 +82,10 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+  /* Pastikan class .flex mengikuti standar Tailwind (nowrap) kecuali diberi .flex-wrap */
+  .flex:not(.flex-wrap) {
+    flex-wrap: nowrap;
+  }
 }
 
 /* Glassmorphism & High-Contrast Panel Styles */

@@ -182,12 +182,12 @@ const handleRowClick = (item) => {
       </CardHeader>
       
       <CardContent class="p-0">
-        <!-- Desktop Table View -->
-        <div class="hidden md:block overflow-x-auto bg-card">
-          <Table>
+        <!-- Desktop Table View (Layar Lapang: xl ke atas) -->
+        <div class="hidden xl:block overflow-hidden bg-card">
+          <Table class="table-fixed w-full">
             <TableHeader>
               <TableRow class="bg-muted/50 hover:bg-muted/50 border-b-2 border-border">
-                <TableHead v-for="col in columns" :key="col.key" :class="[col.align === 'right' ? 'text-right' : 'text-left', col.class, 'py-4 px-6 text-slate-900 font-bold uppercase text-[10px] sm:text-xs tracking-wider']">
+                <TableHead v-for="col in columns" :key="col.key" :class="[col.align === 'right' ? 'text-right' : 'text-left', col.class, 'py-3.5 px-3 text-foreground font-bold uppercase text-[10px] sm:text-xs tracking-wider whitespace-nowrap']">
                   {{ col.label }}
                 </TableHead>
               </TableRow>
@@ -216,7 +216,7 @@ const handleRowClick = (item) => {
                 <TableCell 
                     v-for="col in columns" 
                     :key="col.key" 
-                    :class="[col.align === 'right' ? 'text-right' : 'text-left', col.class, 'py-3 px-6']"
+                    :class="[col.align === 'right' ? 'text-right' : 'text-left', col.class, 'py-3 px-3 overflow-hidden align-middle']"
                 >
                   <div v-if="col.isAction" class="relative h-10 px-2 flex items-center justify-end overflow-hidden">
                       <div class="transition-all duration-300 opacity-100 group-hover:opacity-0 group-hover:pointer-events-none absolute right-2">
@@ -228,9 +228,9 @@ const handleRowClick = (item) => {
                          <slot name="actions" :item="item"></slot>
                       </div>
                   </div>
-                  <div v-else :class="col.align === 'right' ? 'flex justify-end' : 'flex justify-start'">
+                  <div v-else :class="col.align === 'right' ? 'flex justify-end min-w-0 w-full overflow-hidden' : 'min-w-0 w-full overflow-hidden'">
                     <slot :name="`cell-${col.key}`" :item="item">
-                      <span class="text-xs sm:text-sm">{{ item[col.key] }}</span>
+                      <span class="text-xs sm:text-sm truncate block">{{ item[col.key] }}</span>
                     </slot>
                   </div>
                 </TableCell>
@@ -239,8 +239,8 @@ const handleRowClick = (item) => {
           </Table>
         </div>
 
-        <!-- Mobile List View (Premium List Style) -->
-        <div class="md:hidden divide-y divide-border/20 bg-card">
+        <!-- Mobile & Tablet Card View (Layar Lebih Kecil: saat mulai sempit, otomatis Card View tanpa scrolling samping) -->
+        <div class="xl:hidden divide-y divide-border/20 bg-card">
           <!-- Loading State -->
           <div v-if="loading" class="p-8 text-center">
             <Loader2 class="h-8 w-8 animate-spin mx-auto text-primary/40" />
@@ -254,24 +254,26 @@ const handleRowClick = (item) => {
             v-else
             v-for="item in paginatedItems" 
             :key="item.id || item.index"
-            class="p-5 space-y-4 active:bg-muted/30 transition-colors"
+            class="p-4 sm:p-5 space-y-3.5 active:bg-muted/30 transition-colors"
             @click="handleRowClick(item)"
           >
-            <!-- Header: Avatar/Initial + Name + Actions -->
-            <div class="flex items-start gap-4">
-              <div class="flex-1 min-w-0">
+            <!-- Header: Jenis Dokumen / Kolom Pertama + Actions -->
+            <div class="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+              <div class="min-w-0">
                 <slot :name="`cell-${columns[0].key}`" :item="item">
                   <span class="font-bold text-sm text-foreground">{{ item[columns[0].key] }}</span>
                 </slot>
               </div>
-              <!-- Actions: Compact & Always Visible -->
-              <div class="flex items-center gap-1.5 shrink-0">
-                <slot name="actions" :item="item"></slot>
+              <!-- Actions: Compact & Always Visible on Right -->
+              <div class="flex items-center gap-1.5 shrink-0" @click.stop>
+                <slot name="actions" :item="item">
+                  <slot :name="`cell-${columns[columns.length - 1]?.key}`" :item="item"></slot>
+                </slot>
               </div>
             </div>
             
-            <!-- Details Area (No rigid labels) -->
-            <div class="space-y-3">
+            <!-- Details Area (Perihal & Penandatangan) -->
+            <div class="space-y-2.5 pt-1">
                <div v-for="col in columns.slice(1, -2)" :key="col.key" class="text-left">
                   <slot :name="`cell-${col.key}`" :item="item">
                     <span class="text-xs text-muted-foreground">{{ item[col.key] }}</span>
@@ -279,19 +281,11 @@ const handleRowClick = (item) => {
                </div>
             </div>
 
-            <!-- Footer: Status & Date (Side by side) -->
-            <div class="flex items-end justify-between pt-3 border-t border-border/10">
-              <div class="flex flex-col gap-1">
-                <!-- Status Column (Usually 2nd to last) -->
+            <!-- Footer: Status -->
+            <div class="flex items-center justify-between pt-2.5 border-t border-border/20 text-xs">
+              <div>
                 <slot :name="`cell-${columns[columns.length - 2].key}`" :item="item">
                    <span class="text-[10px] font-bold uppercase text-muted-foreground">{{ item[columns[columns.length - 2].key] }}</span>
-                </slot>
-              </div>
-              
-              <div class="text-right">
-                <!-- Date/Time Column (Last) -->
-                <slot :name="`cell-${columns[columns.length - 1].key}`" :item="item">
-                   <span class="text-[10px] text-muted-foreground">{{ item[columns[columns.length - 1].key] }}</span>
                 </slot>
               </div>
             </div>

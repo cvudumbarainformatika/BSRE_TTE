@@ -211,22 +211,38 @@ class BsreTteService:
         height: int = 80
     ) -> dict:
         """
-        Melakukan proses penandatanganan elektronik TTE BSRE.
-        Semua kredensial (NIK & Passphrase) divalidasi terhadap variabel .env (settings).
+        Melakukan proses penandatanganan elektronik TTE BSRE:
+        - Mode Development/Sandbox (BSRE_MOCK_MODE=True):
+          Menggunakan akun uji coba BSrE Dev (.env) untuk simulasi lintas dokter,
+          dengan validasi passphrase dev dan pencatatan atas nama dokter penandatangan asli.
+        - Mode Production (BSRE_MOCK_MODE=False):
+          Wajib menggunakan NIK asli masing-masing dokter penandatangan dan memvalidasi
+          Passphrase langsung ke Engine Esign-Client BSrE BSSN tanpa fallback diam-diam,
+          serta meneruskan pesan error asli dari BSrE jika gagal.
         """
-        effective_nik = signer_nik or settings.BSRE_DEV_NIK or signer_nip
-
         if not passphrase or len(passphrase.strip()) < 3:
-            raise ValueError("Passphrase BSrE tidak valid! Harap masukkan Passphrase BSrE Anda.")
+            raise ValueError(f"Otorisasi BSrE Gagal: Passphrase BSrE wajib diisi untuk penandatangan {signer_name}.")
 
-        if not self.mock_mode and passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
-            raise ValueError("Passphrase BSrE salah! Silakan periksa kembali Passphrase BSrE Anda.")
+        # Ambil NIK asli dokter dari metadata jika belum dikirim langsung
+        real_doctor_nik = signer_nik
+        if not real_doctor_nik and metadata_payload:
+            dok_meta = metadata_payload.get("dokter") or metadata_payload.get("dpjp") or {}
+            real_doctor_nik = dok_meta.get("nik")
 
-        logger.info(f"Initiating BSRE TTE Signing for doc {doc_id} by {signer_name}")
+        logger.info(f"Initiating BSRE TTE Signing for doc {doc_id} by {signer_name} (mock_mode={self.mock_mode})")
         verify_url = self.build_simrs_legalitas_url(metadata_payload=metadata_payload, doc_id=doc_id)
 
-        # 1. Jika bukan mock mode, panggil Esign-Client Service BSrE
+        # =========================================================================
+        # 1. MODE PRODUCTION LIVE (BSRE_MOCK_MODE = False)
+        # Validasi NIK & Passphrase asli masing-masing user langsung ke server BSrE
+        # =========================================================================
         if not self.mock_mode:
+            effective_nik = (real_doctor_nik or "").strip()
+            if not effective_nik:
+                raise ValueError(
+                    f"Gagal TTE BSrE: NIK untuk penandatangan '{signer_name}' belum terdaftar di data kepegawaian E-RM."
+                )
+
             sign_url = f"{self.base_url}/api/sign/pdf"
             try:
                 with open(input_pdf_path, "rb") as f_pdf:
@@ -246,7 +262,13 @@ class BsreTteService:
                         "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
                         "location": "Kota Probolinggo"
                     }
-                    response = httpx.post(sign_url, data=data, files=files, auth=(self.username, self.password), timeout=self.timeout)
+                    response = httpx.post(
+                        sign_url,
+                        data=data,
+                        files=files,
+                        auth=(self.username, self.password),
+                        timeout=self.timeout
+                    )
 
                     if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/pdf"):
                         os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
@@ -270,11 +292,35 @@ class BsreTteService:
                             "status": "SIGNED_BSRE"
                         }
                     else:
-                        logger.warning(f"Esign-Client live error ({response.status_code}): {response.text}. Fallback to local stamp.")
+                        # Ekstrak pesan error detail dari server BSrE (misal: Passphrase salah, NIK tidak terdaftar, Sertifikat expired)
+                        bsre_err_msg = f"HTTP {response.status_code}"
+                        try:
+                            err_json = response.json()
+                            bsre_err_msg = (
+                                err_json.get("error")
+                                or err_json.get("message")
+                                or err_json.get("detail")
+                                or str(err_json)
+                            )
+                        except Exception:
+                            if response.text:
+                                bsre_err_msg = response.text[:200]
+                        raise ValueError(f"Ditolak oleh Engine BSrE BSSN ({response.status_code}): {bsre_err_msg}")
+            except ValueError:
+                raise
             except Exception as e:
-                logger.warning(f"Koneksi ke Esign-Client {self.base_url} gagal ({e}). Fallback to local compliant signing.")
+                raise ValueError(f"Gagal terhubung ke Server Esign-Client BSrE ({self.base_url}): {str(e)}")
 
-        # 2. Mode Stamping Visual QR Tunggal Berlogo (Tanpa kotak hijau & tanpa NIK di dokumen)
+        # =========================================================================
+        # 2. MODE DEVELOPMENT / SANDBOX (BSRE_MOCK_MODE = True)
+        # Menggunakan akun uji coba Dev (.env) untuk simulasi, dengan validasi passphrase dev
+        # =========================================================================
+        effective_nik = real_doctor_nik or settings.BSRE_DEV_NIK or signer_nip
+        if passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
+            raise ValueError(
+                f"Otorisasi BSrE Gagal: Passphrase BSrE yang Anda masukkan salah untuk penandatangan {signer_name}."
+            )
+
         result = self.stamp_tte_visual(
             input_pdf_path=input_pdf_path,
             output_pdf_path=output_pdf_path,
