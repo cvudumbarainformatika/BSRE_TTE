@@ -29,9 +29,9 @@
         </Button>
       </template>
 
-      <!-- Kolom 1: Jenis Dokumen (Ikon PDF Merah + Label Teks Tanpa Badge) -->
+      <!-- Kolom 1: Jenis Dokumen (Ikon PDF Merah + Label Teks Tanpa Badge + Versioning, Size & Tgl Terbit di Bawahnya) -->
       <template #cell-document_type="{ item }">
-        <div class="flex flex-nowrap items-center gap-2.5 min-w-0">
+        <div class="flex flex-nowrap items-center gap-2.5 min-w-0 max-w-full">
           <!-- Icon Kotak PDF Merah (Tiru SS) -->
           <div class="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/25 flex flex-col items-center justify-center shrink-0 shadow-xs">
             <svg class="w-3.5 h-3.5 text-rose-500" viewBox="0 0 24 24" fill="currentColor">
@@ -40,21 +40,28 @@
             <span class="text-[6.5px] font-black text-rose-500 leading-none mt-0.5 tracking-tight">PDF</span>
           </div>
 
-          <!-- Label Tanpa Badge -->
-          <div class="min-w-0">
+          <!-- Label Tanpa Badge + Versioning, Size & Tgl Terbit -->
+          <div class="min-w-0 flex-1 overflow-hidden">
             <div class="text-xs font-semibold text-foreground truncate" :title="formatType(item.document_type)">
               {{ formatType(item.document_type) }}
             </div>
-            <div v-if="getDocVersion(item) > 1" class="text-[10px] font-mono text-primary font-medium">
-              Revisi v{{ getDocVersion(item) }}.0
+            <div
+              class="text-[10px] text-muted-foreground mt-0.5 truncate flex flex-nowrap items-center gap-1.5"
+              :title="`Versi: v${getDocVersion(item)}.0 • Ukuran: ${((item.file_size || 0) / 1024).toFixed(1)} KB • Terbit: ${formatDate(item.uploaded_at)}`"
+            >
+              <span class="font-mono text-primary font-medium shrink-0">v{{ getDocVersion(item) }}.0</span>
+              <span class="text-muted-foreground/40 shrink-0">•</span>
+              <span class="shrink-0">{{ ((item.file_size || 0) / 1024).toFixed(1) }} KB</span>
+              <span class="text-muted-foreground/40 shrink-0">•</span>
+              <span class="truncate">{{ formatDate(item.uploaded_at) }}</span>
             </div>
           </div>
         </div>
       </template>
 
-      <!-- Kolom 2: Perihal & No. Dokumen (Badge PDF Merah Dihapus) -->
+      <!-- Kolom 2: Perihal & No. Dokumen (Badge PDF Merah Dihapus + Ellipsis Rapi) -->
       <template #cell-title="{ item }">
-        <div class="min-w-0 max-w-full">
+        <div class="min-w-0 max-w-full overflow-hidden">
           <div
             class="font-bold text-xs text-foreground hover:text-primary transition-colors truncate"
             :title="item.title || item.filename"
@@ -62,13 +69,13 @@
             {{ item.title || item.filename }}
           </div>
           <div
-            class="text-[11px] text-muted-foreground mt-0.5 truncate"
+            class="text-[11px] text-muted-foreground mt-0.5 truncate font-mono"
             :title="getDocReferenceSummary(item)"
           >
             {{ getDocReferenceSummary(item) }}
           </div>
           <div
-            class="text-[10px] text-muted-foreground/75 font-mono mt-0.5 truncate"
+            class="text-[10px] text-muted-foreground/70 font-mono mt-0.5 truncate"
             :title="item.filename"
           >
             {{ item.filename }}
@@ -76,39 +83,38 @@
         </div>
       </template>
 
-      <!-- Kolom 3: Penandatangan TTE (Nama Penandatangan + 2 Tanggal: Terbit & Di-TTE) -->
+      <!-- Kolom 3: Penandatangan TTE (Nama Penandatangan + NIP & Waktu Di-TTE) -->
       <template #cell-tte_signer_name="{ item }">
-        <div class="min-w-0">
+        <div class="min-w-0 max-w-full overflow-hidden">
           <div
             class="font-bold text-xs text-foreground truncate"
             :title="item.tte_signer_name || item.target_signer_name || '-'"
           >
             {{ item.tte_signer_name || item.target_signer_name || '-' }}
           </div>
-          <!-- 2 Tanggal: Terbit & Di-TTE -->
-          <div class="text-[10px] text-muted-foreground space-y-0.5 mt-1 whitespace-nowrap">
-            <div class="flex items-center gap-1">
-              <span class="text-muted-foreground/70">Terbit :</span>
-              <span class="font-mono text-foreground/80">{{ formatDate(item.uploaded_at) }}</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="text-muted-foreground/70">Di-TTE :</span>
-              <span class="font-mono text-foreground/80">{{ formatDate(item.tte_signed_at || item.uploaded_at) }}</span>
-            </div>
+          <div
+            v-if="item.tte_signer_nip || item.target_signer_nip"
+            class="text-[10px] text-muted-foreground font-mono mt-0.5 truncate"
+            :title="`NIP: ${item.tte_signer_nip || item.target_signer_nip}`"
+          >
+            NIP: {{ item.tte_signer_nip || item.target_signer_nip }}
+          </div>
+          <div
+            class="text-[10px] text-muted-foreground mt-0.5 truncate"
+            :title="`Di-TTE: ${formatDate(item.tte_signed_at || item.uploaded_at)}`"
+          >
+            Di-TTE: {{ formatDate(item.tte_signed_at || item.uploaded_at) }}
           </div>
         </div>
       </template>
 
       <!-- Kolom 4: Status (Badge Terverifikasi BSrE Meniru SS) -->
-      <template #cell-tte_status="{ item }">
-        <div class="min-w-0">
+      <template #cell-tte_status>
+        <div class="min-w-0 max-w-full overflow-hidden">
           <!-- Badge Pill Terverifikasi BSrE (Tiru SS) -->
           <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium whitespace-nowrap shadow-xs">
             <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>Terverifikasi BSrE</span>
-          </div>
-          <div class="text-[10px] text-muted-foreground/80 mt-1 whitespace-nowrap">
-            {{ ((item.file_size || 0) / 1024).toFixed(1) }} KB
           </div>
         </div>
       </template>
@@ -227,13 +233,13 @@ const props = defineProps({
 
 const emit = defineEmits(['view-document'])
 
-// Struktur Kolom Asli Tetap Dijaga
+// Struktur Kolom Tetap Sesuai Urutan Asli
 const columns = [
-  { key: 'document_type', label: 'Jenis Dokumen', class: 'w-[18%]' },
-  { key: 'title', label: 'Perihal & No. Dokumen', class: 'w-[37%]' },
-  { key: 'tte_signer_name', label: 'Penandatangan TTE', class: 'w-[25%]' },
-  { key: 'tte_status', label: 'Status', class: 'w-[11%]' },
-  { key: 'aksi', label: 'Aksi', align: 'right', class: 'w-[9%]' }
+  { key: 'document_type', label: 'Jenis Dokumen', class: 'w-[23%]' },
+  { key: 'title', label: 'Perihal & No. Dokumen', class: 'w-[35%]' },
+  { key: 'tte_signer_name', label: 'Penandatangan TTE', class: 'w-[22%]' },
+  { key: 'tte_status', label: 'Status', class: 'w-[12%]' },
+  { key: 'aksi', label: 'Aksi', align: 'right', class: 'w-[8%]' }
 ]
 
 const documents = ref([])
