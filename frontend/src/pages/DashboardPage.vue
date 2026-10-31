@@ -8,9 +8,15 @@
       <!-- Banner Sambutan Futuristik (Glassmorphism Glow dari ui-mantap.html) -->
       <div class="relative p-6 rounded-2xl glass-panel-glow overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div class="z-10">
-          <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">
-            BSSN Certified Environment • BSrE Cloud Sync
-          </span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">
+              BSSN Certified Environment • BSrE Cloud Sync
+            </span>
+            <span v-if="currentUser?.nama" class="text-xs font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-semibold">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Selamat Bertugas, {{ currentUser.nama }}
+            </span>
+          </div>
           <h2 class="text-xl sm:text-2xl font-bold text-foreground mt-2">
             Sistem Pengarsipan & Verifikasi Dokumen TTE BSrE
           </h2>
@@ -115,7 +121,7 @@
       </div>
 
       <!-- Quick Action Cards Dashboard -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
         <Card class="glass-panel border-border hover:border-amber-500/40 transition-all cursor-pointer" @click="navigateToNav('inbox')">
           <CardHeader class="pb-2">
             <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-2">
@@ -146,18 +152,18 @@
           </CardContent>
         </Card>
 
-        <Card class="glass-panel border-border hover:border-primary/40 transition-all cursor-pointer" @click="navigateToNav('vector')">
+        <Card class="glass-panel border-border hover:border-cyan-500/40 transition-all cursor-pointer" @click="navigateToNav('upload')">
           <CardHeader class="pb-2">
-            <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
-              <Archive class="w-5 h-5" />
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-2">
+              <UploadCloud class="w-5 h-5" />
             </div>
-            <CardTitle class="text-sm font-bold text-foreground">Pencarian Semantik AI</CardTitle>
+            <CardTitle class="text-sm font-bold text-foreground">Upload & TTE PDF</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
-              Pencarian cerdas isi dokumen rekam medis yang telah tersertifikasi menggunakan pgvector.
+              Unggah berkas PDF, Word, atau EPUB dengan kanvas penempatan stempel QR presisi.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
-            <span class="text-xs font-bold text-primary flex items-center gap-1">Buka Pencarian AI →</span>
+            <span class="text-xs font-bold text-cyan-400 flex items-center gap-1">Unggah Dokumen →</span>
           </CardContent>
         </Card>
       </div>
@@ -186,68 +192,13 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- 5. TAMPILAN KHUSUS MENU: PENCARIAN SEMANTIK AI                        -->
+    <!-- 4. TAMPILAN KHUSUS MENU: UPLOAD & TTE INTERAKTIF                       -->
     <!-- ===================================================================== -->
-    <div v-else-if="currentNav === 'vector'" class="space-y-4">
-      <Card class="glass-panel border-border shadow-sm">
-        <CardHeader>
-          <CardTitle class="text-base font-bold text-foreground">
-            Pencarian Semantik Rekam Medis (PostgreSQL pgvector)
-          </CardTitle>
-          <CardDescription class="text-xs text-muted-foreground">
-            Cari dokumen rekam medis atau surat kematian berdasarkan kemiripan makna penyebab kematian, keluhan klinis, atau diagnosa menggunakan representasi vektor 1536-dimensi.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="md:col-span-10">
-              <AppInput
-                id="vector-search-query"
-                label="Kata Kunci Klinis / Diagnosa ICD-10"
-                v-model="vectorQuery"
-                placeholder="Ketik penyebab kematian atau diagnosa (contoh: 'Cardiac arrest Respiratory arrest')..."
-                @keyup.enter="doVectorSearch"
-              />
-            </div>
-            <div class="md:col-span-2">
-              <Button
-                class="w-full bg-primary text-primary-foreground text-xs font-bold h-9 rounded-xl"
-                :disabled="isSearchingVector"
-                @click="doVectorSearch"
-              >
-                {{ isSearchingVector ? 'Mencari...' : 'Cari Vektor' }}
-              </Button>
-            </div>
-          </div>
-
-          <div v-if="vectorResults.length > 0" class="space-y-2 pt-2">
-            <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hasil Kemiripan Vektor:</div>
-            <Card
-              v-for="res in vectorResults"
-              :key="res.id"
-              class="glass-panel hover:border-primary/40 border-border cursor-pointer transition-colors"
-              @click="openViewer(res)"
-            >
-              <CardContent class="p-4 flex items-center justify-between">
-                <div>
-                  <div class="font-bold text-foreground text-sm">{{ res.title || res.filename }}</div>
-                  <div class="text-xs text-muted-foreground mt-0.5">{{ res.description || 'Tanpa deskripsi' }}</div>
-                  <div class="text-[10px] text-muted-foreground mt-1">
-                    Kunjungan #{{ res.kunjungan_id }} • Tipe: {{ res.document_type }} • Status TTE: {{ res.tte_status }}
-                  </div>
-                </div>
-                <Badge variant="outline" class="border-primary/40 text-primary font-bold text-xs">
-                  Lihat PDF
-                </Badge>
-              </CardContent>
-            </Card>
-          </div>
-          <div v-else-if="hasSearchedVector" class="text-center py-8 text-xs text-muted-foreground">
-            Tidak ditemukan dokumen yang cocok dengan vektor pencarian.
-          </div>
-        </CardContent>
-      </Card>
+    <div v-else-if="currentNav === 'upload'" class="space-y-4">
+      <UploadTteInteractive
+        @document-signed="onDocumentSigned"
+        @navigate-to="navigateToNav"
+      />
     </div>
 
     <!-- MODAL INLINE VIEWER MENGGUNAKAN KOMPONEN MODULAR AppDialog -->
@@ -288,12 +239,14 @@ import {
   FileText,
   Inbox,
   Archive,
-  ArrowUpRight
+  ArrowUpRight,
+  UploadCloud
 } from 'lucide-vue-next'
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
 import DocumentList from '@/widgets/DocumentList.vue'
 import DocumentViewer from '@/widgets/DocumentViewer.vue'
+import UploadTteInteractive from '@/widgets/UploadTteInteractive.vue'
 
 const props = defineProps({
   currentUser: {
@@ -320,11 +273,6 @@ const docListRef = ref(null)
 const selectedDoc = ref(null)
 const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
-
-const vectorQuery = ref('Cardiac arrest Respiratory arrest')
-const vectorResults = ref([])
-const isSearchingVector = ref(false)
-const hasSearchedVector = ref(false)
 
 watch(
   () => props.pendingCount,
@@ -370,20 +318,6 @@ const onDocumentCreated = () => {
   }
   if (docListRef.value) {
     docListRef.value.loadDocuments()
-  }
-}
-
-const doVectorSearch = async () => {
-  if (!vectorQuery.value) return
-  isSearchingVector.value = true
-  hasSearchedVector.value = true
-  try {
-    const res = await documentApi.semanticSearch(vectorQuery.value, 5)
-    vectorResults.value = res.data.data
-  } catch (err) {
-    console.error('Vector search error:', err)
-  } finally {
-    isSearchingVector.value = false
   }
 }
 

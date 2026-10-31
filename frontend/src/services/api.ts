@@ -83,9 +83,32 @@ export const notificationApi = {
   markRead: (id: number | string) => api.post(`/notifications/${id}/read`),
 };
 
+export const uploadTteApi = {
+  convertAndPreview: (formData: FormData) =>
+    api.post("/upload-tte/convert-preview", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  getPagePreviewUrl: (uploadId: string, pageNumber: number) =>
+    `${api.defaults.baseURL}/upload-tte/page-preview/${uploadId}/${pageNumber}`,
+
+  processSign: (formData: FormData) =>
+    api.post("/upload-tte/process-sign", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+};
+
 export const authApi = {
   login: (credentials: { username: string; password: string }) =>
     api.post("/auth/login", credentials),
+  loginQrSimrs: (payload: { email: string; token?: string }) =>
+    api.post("/auth/login-qr", payload),
+  ssoLogin: (payload: { sso_token?: string; nip?: string; username?: string; auth_key?: string }) =>
+    api.post("/auth/sso-login", payload),
+  generateQr: (customCode?: string) =>
+    api.post("/auth/qr/generate", customCode ? { custom_code: customCode } : {}),
+  checkQrStatus: (sessionId: string) => api.get(`/auth/qr/status/${sessionId}`),
+  approveQr: (payload: { session_id: string; nip: string }) => api.post("/auth/qr/approve", payload),
   me: () => api.get("/auth/me"),
 };
 

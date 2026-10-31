@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Storage and uploads
+backend/storage/app/temp/**
+backend/storage/app/documents/**
+backend/storage/app/qr_codes/**
+!backend/storage/app/temp/.gitkeep
+!backend/storage/app/documents/.gitkeep
+!backend/storage/app/qr_codes/.gitkeep
+
+# Generated & test artifacts
+*.pdf
+*.png
+*.jpg
+*.jpeg
+halaman_login_tte_bsre.html
+
+# Environment variables
+.env
+*.env.local
+
+# Node
+node_modules/
+dist/
+.quasar/

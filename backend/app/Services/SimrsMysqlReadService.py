@@ -335,5 +335,47 @@ class SimrsMysqlReadService:
             "raw_records": records
         }
 
+    @classmethod
+    def find_pegawai_by_identifier(cls, identifier: str) -> Optional[Dict[str, Any]]:
+        """
+        Cari pegawai/dokter aktif di kepegx.pegawai SIMRS berdasarkan NIP atau kdpegsimrs atau username.
+        Mengambil kredensial login (pass MD5 dan account_pass) untuk verifikasi Just-In-Time.
+        """
+        if not identifier:
+            return None
+        clean_id = identifier.strip()
+        conn = cls._get_connection()
+        try:
+            with conn.cursor() as cur:
+                sql = """
+                    SELECT
+                        peg.kdpegsimrs,
+                        peg.nip,
+                        peg.nik,
+                        peg.nama,
+                        peg.aktif,
+                        peg.pass AS password_hash,
+                        peg.account_pass AS password_plain,
+                        acc.password AS account_bcrypt_hash,
+                        peg.jenispegawai,
+                        peg.profesi,
+                        jab.jabatan AS ket_jabatan,
+                        gol.golruang AS golongan
+                    FROM kepegx.pegawai peg
+                    LEFT JOIN kepegx.m_jabatan jab ON peg.jabatan = jab.kode_jabatan
+                    LEFT JOIN kepegx.m_golruang gol ON peg.golruang = gol.kode_gol
+                    LEFT JOIN accounts acc ON acc.pegawai_id = peg.id
+                    WHERE (peg.nip = %s OR peg.kdpegsimrs = %s OR peg.nik = %s OR acc.email = %s OR acc.username = %s)
+                      AND (peg.aktif = 'AKTIF' OR peg.aktif = 'PROGRAMER' OR peg.aktif = '1')
+                    LIMIT 1
+                """
+                cur.execute(sql, (clean_id, clean_id, clean_id, clean_id, clean_id))
+                return cur.fetchone()
+        except Exception as e:
+            logger.warning(f"Gagal mencari pegawai di SIMRS MySQL: {e}")
+            return None
+        finally:
+            conn.close()
+
 
 simrs_mysql_service = SimrsMysqlReadService()

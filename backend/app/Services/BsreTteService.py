@@ -194,6 +194,94 @@ class BsreTteService:
             "status": "SIGNED_BSRE"
         }
 
+    def stamp_custom_coordinate(
+        self,
+        input_pdf_path: str,
+        output_pdf_path: str,
+        signer_name: str,
+        signer_nip: str,
+        signer_nik: str,
+        doc_id: int,
+        target_page: int,
+        x_point: float,
+        y_point: float,
+        width_point: float,
+        height_point: float,
+        stamp_type: str = "qr_text",
+        metadata_payload: dict = None
+    ) -> dict:
+        """
+        Membubuhkan stempel visual QR TTE BSrE pada koordinat spesifik (X, Y)
+        dan halaman yang dipilih pengguna secara interaktif dari kanvas frontend.
+        """
+        os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
+        verify_url = self.build_simrs_legalitas_url(metadata_payload=metadata_payload, doc_id=doc_id)
+
+        # Buat QR code resmi dengan center logo
+        pil_qr = pdf_service.create_qr_with_center_logo(verify_url, logo_filename="logo-rsud.png")
+        qr_buf = io.BytesIO()
+        pil_qr.save(qr_buf, format="PNG")
+        qr_buf.seek(0)
+        img_reader = ImageReader(qr_buf)
+
+        reader = PdfReader(input_pdf_path)
+        writer = PdfWriter()
+        total_pages = len(reader.pages)
+        if target_page < 1 or target_page > total_pages:
+            target_page = total_pages
+
+        bsre_id = f"BSRE-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        short_id = bsre_id[-7:]
+
+        for i in range(total_pages):
+            page = reader.pages[i]
+            page_w = float(page.mediabox.width)
+            page_h = float(page.mediabox.height)
+
+            pkt = io.BytesIO()
+            c = canvas.Canvas(pkt, pagesize=(page_w, page_h))
+
+            # 1. Footer wajib BSrE BSSN di setiap halaman
+            c.setStrokeColorRGB(0.8, 0.84, 0.88)
+            c.setLineWidth(0.5)
+            c.line(2.0 * cm, 1.45 * cm, page_w - 2.0 * cm, 1.45 * cm)
+            c.setFont("Helvetica", 7.5)
+            c.setFillColorRGB(0.12, 0.16, 0.23)
+            c.drawCentredString(page_w / 2.0, 1.05 * cm, pdf_service.BSRE_MANDATORY_FOOTER_LINE1)
+            c.drawCentredString(page_w / 2.0, 0.72 * cm, pdf_service.BSRE_MANDATORY_FOOTER_LINE2)
+
+            # 2. Gambar stempel QR murni di halaman target
+            if i + 1 == target_page:
+                dim = min(width_point, height_point)
+                # HANYA 1 QR Code resmi dengan logo di tengahnya (tanpa kotak border, tanpa teks/label samping)
+                c.drawImage(img_reader, x_point, y_point, width=dim, height=dim, mask='auto')
+
+            c.save()
+            pkt.seek(0)
+            overlay_pdf = PdfReader(pkt)
+            page.merge_page(overlay_pdf.pages[0])
+            writer.add_page(page)
+
+        with open(output_pdf_path, "wb") as f_out:
+            writer.write(f_out)
+
+        doc_hash = self.calculate_file_hash(output_pdf_path)
+
+        return {
+            "bsre_id": bsre_id,
+            "pdf_hash": doc_hash,
+            "signed_at": datetime.now(timezone.utc),
+            "verify_url": verify_url,
+            "certificate_issuer": "Balai Besar Sertifikasi Elektronik (BSrE) - BSSN Indonesia",
+            "certificate_serial": f"BSSN-{uuid.uuid4().hex[:8].upper()}",
+            "signer_nik": signer_nik,
+            "signer_nip": signer_nip,
+            "signer_name": signer_name,
+            "is_valid": True,
+            "live_esign_engine": False,
+            "status": "SIGNED_BSRE"
+        }
+
     def sign_document(
         self,
         input_pdf_path: str,

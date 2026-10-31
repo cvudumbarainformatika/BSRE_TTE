@@ -186,17 +186,17 @@
         <!-- Status Alert Banner -->
         <div
           class="p-4 rounded-xl border flex items-start gap-3"
-          :class="verifyData.is_valid
+          :class="isVerifyValid
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
             : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'"
         >
           <ShieldCheck class="w-6 h-6 shrink-0 mt-0.5" />
           <div>
             <h4 class="font-bold text-sm">
-              {{ verifyData.is_valid ? 'DOKUMEN ASLI & TERVERIFIKASI BSrE BSSN' : 'INTEGRITAS DOKUMEN TIDAK VALID' }}
+              {{ isVerifyValid ? 'DOKUMEN ASLI & TERVERIFIKASI BSrE BSSN' : 'INTEGRITAS DOKUMEN TIDAK VALID' }}
             </h4>
             <p class="text-xs mt-1 text-muted-foreground leading-relaxed">
-              {{ verifyData.notes || verifyData.message }}
+              {{ verifyData.notes || verifyData.message || (isVerifyValid ? 'Sertifikat digital aktif dan checksum SHA-256 dokumen cocok dengan repositori resmi.' : 'Integritas dokumen tidak valid.') }}
             </p>
           </div>
         </div>
@@ -205,19 +205,19 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           <div class="p-3 bg-muted/40 rounded-lg border border-border">
             <span class="text-muted-foreground block text-[11px]">Nama Penandatangan (Signer):</span>
-            <strong class="text-foreground text-xs">{{ verifyData.signer_name || '-' }}</strong>
+            <strong class="text-foreground text-xs">{{ verifyData.signer_name || verifyData.signer?.name || selectedVerifyDoc?.tte_signer_name || '-' }}</strong>
           </div>
           <div class="p-3 bg-muted/40 rounded-lg border border-border">
             <span class="text-muted-foreground block text-[11px]">NIP / Identitas Resmi:</span>
-            <strong class="text-foreground text-xs">{{ verifyData.signer_nip || '-' }}</strong>
+            <strong class="text-foreground text-xs">{{ verifyData.signer_nip || verifyData.signer?.nip || selectedVerifyDoc?.tte_signer_nip || '-' }}</strong>
           </div>
           <div class="p-3 bg-muted/40 rounded-lg border border-border">
             <span class="text-muted-foreground block text-[11px]">Otoritas Penerbit Sertifikat (CA):</span>
-            <strong class="text-foreground text-xs">{{ verifyData.certificate_issuer || 'Balai Sertifikasi Elektronik (BSrE) - BSSN RI' }}</strong>
+            <strong class="text-foreground text-xs">{{ verifyData.certificate_issuer || verifyData.certificate?.issuer || 'Balai Sertifikasi Elektronik (BSrE) - BSSN RI' }}</strong>
           </div>
           <div class="p-3 bg-muted/40 rounded-lg border border-border">
             <span class="text-muted-foreground block text-[11px]">Waktu Penandatanganan (Timestamp):</span>
-            <strong class="text-foreground text-xs">{{ formatDate(verifyData.signed_at) }}</strong>
+            <strong class="text-foreground text-xs">{{ formatDate(verifyData.signed_at || verifyData.signer?.signed_at || selectedVerifyDoc?.tte_signed_at) }}</strong>
           </div>
         </div>
 
@@ -225,7 +225,7 @@
         <div class="p-3 bg-muted/30 rounded-lg border border-border">
           <span class="text-muted-foreground block text-[11px] mb-1">Nilai Hash Dokumen (SHA-256 Integritas):</span>
           <code class="text-[10px] break-all font-mono text-muted-foreground bg-background p-1.5 rounded border border-border block">
-            {{ verifyData.sha256_hash || verifyData.pdf_hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' }}
+            {{ verifyData.sha256_hash || verifyData.pdf_hash || verifyData.certificate?.sha256_hash || selectedVerifyDoc?.pdf_hash || '-' }}
           </code>
         </div>
       </div>
@@ -285,6 +285,15 @@ const meta = reactive({
 const showVerifyModal = ref(false)
 const verifyData = ref(null)
 const selectedVerifyDoc = ref(null)
+
+const isVerifyValid = computed(() => {
+  if (!verifyData.value) return false
+  return (
+    verifyData.value.is_valid === true ||
+    verifyData.value.status === 'VALID_BSRE' ||
+    verifyData.value.integrity?.is_authentic === true
+  )
+})
 
 const loadDocuments = async () => {
   loading.value = true

@@ -86,6 +86,41 @@
         </nav>
       </div>
 
+      <!-- User Profile Card di Sidebar (Hanya di mode normal) -->
+      <div
+        v-if="!isSidebarMini"
+        class="px-3.5 py-2.5 mx-3 mb-2 rounded-xl bg-card border border-border shadow-xs flex items-center gap-2.5 cursor-pointer hover:border-primary/40 transition-all"
+        @click="openProfileModal"
+      >
+        <Avatar size="sm" class="h-8 w-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs ring-1 ring-primary/20 shrink-0">
+          <AvatarFallback class="font-bold text-[11px] bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
+            {{ userInitials }}
+          </AvatarFallback>
+        </Avatar>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-xs text-foreground truncate" :title="activeUser.nama || activeUser.username">
+            {{ activeUser.nama || activeUser.username || 'Pengguna' }}
+          </div>
+          <div class="text-[10px] text-muted-foreground truncate font-mono">
+            {{ activeUser.nip ? `NIP: ${activeUser.nip}` : `@${activeUser.username}` }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar Mini di Sidebar saat mode mini -->
+      <div v-else class="my-2 mx-auto flex justify-center">
+        <Avatar
+          size="sm"
+          class="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs ring-1 ring-primary/30 cursor-pointer hover:scale-105 transition-all"
+          :title="`${activeUser.nama || activeUser.username} (${formatRole(activeUser.role)})`"
+          @click="openProfileModal"
+        >
+          <AvatarFallback class="font-bold text-xs bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
+            {{ userInitials }}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
       <!-- BSrE Status Footer at Bottom Sidebar (Mode Normal vs Mode Mini Berlampu Kedip) -->
       <div v-if="!isSidebarMini" class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300">
         <div class="flex items-center justify-between mb-2">
@@ -134,7 +169,7 @@
           </div>
         </div>
 
-        <!-- Right Controls: Status Portal Global, Dark/Light Mode, Notif -->
+        <!-- Right Controls: Status Portal Global, Dark/Light Mode, Notif, User Profile -->
         <div class="flex items-center space-x-2 sm:space-x-3">
           <!-- Badge Mode Global -->
           <Badge variant="outline" class="hidden sm:flex items-center gap-1.5 px-3 py-1 text-[11px] bg-primary/10 text-primary border-primary/30 rounded-lg font-semibold">
@@ -225,6 +260,125 @@
               </div>
             </Card>
           </div>
+
+          <!-- =============================================================== -->
+          <!-- USER PROFILE & AVATAR PILL DROPDOWN                             -->
+          <!-- =============================================================== -->
+          <div class="relative">
+            <Button
+              variant="ghost"
+              class="h-9.5 pl-1.5 pr-2.5 py-1 rounded-xl border border-border hover:border-primary/40 hover:bg-muted/60 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+              @click="toggleProfileDropdown"
+            >
+              <!-- Avatar dengan Ring Status Hijau Aktif -->
+              <div class="relative">
+                <Avatar size="sm" class="h-7 w-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs ring-1 ring-primary/30">
+                  <AvatarFallback class="font-bold text-[11px] bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
+                    {{ userInitials }}
+                  </AvatarFallback>
+                </Avatar>
+                <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-card"></span>
+              </div>
+
+              <!-- Nama dan NIP User (Desktop) -->
+              <div class="hidden md:flex flex-col text-left max-w-[130px] lg:max-w-[180px]">
+                <span class="text-xs font-bold text-foreground truncate leading-tight">
+                  {{ activeUser.nama || activeUser.username || 'Pengguna SIMRS' }}
+                </span>
+                <span class="text-[10px] text-muted-foreground truncate font-mono">
+                  {{ activeUser.nip ? `NIP: ${activeUser.nip}` : `@${activeUser.username || 'user'}` }}
+                </span>
+              </div>
+
+              <ChevronDown
+                class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200"
+                :class="{ 'rotate-180': showProfileDropdown }"
+              />
+            </Button>
+
+            <!-- User Profile Dropdown Card -->
+            <Card
+              v-if="showProfileDropdown"
+              class="absolute right-0 mt-2 w-80 glass-panel rounded-2xl shadow-2xl border-border z-50 p-4 text-xs"
+            >
+              <!-- Profile Header Card -->
+              <div class="flex items-start gap-3 pb-3 border-b border-border">
+                <Avatar size="sm" class="h-11 w-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-bold text-sm ring-2 ring-primary/30 shrink-0">
+                  <AvatarFallback class="font-bold text-sm bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
+                    {{ userInitials }}
+                  </AvatarFallback>
+                </Avatar>
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-bold text-sm text-foreground truncate leading-tight">
+                    {{ activeUser.nama || activeUser.username }}
+                  </h4>
+                  <p class="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
+                    {{ activeUser.nip ? `NIP: ${activeUser.nip}` : `@${activeUser.username}` }}
+                  </p>
+                  <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="outline" class="text-[10px] px-2 py-0 bg-primary/10 text-primary border-primary/30 uppercase font-semibold">
+                      {{ formatRole(activeUser.role) }}
+                    </Badge>
+                    <Badge variant="outline" class="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+                      BSrE Valid
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Info Detail Section -->
+              <div class="py-3 space-y-2 text-[11px] border-b border-border">
+                <div class="flex justify-between items-center text-muted-foreground">
+                  <span>Unit / Instansi:</span>
+                  <span class="font-medium text-foreground text-right truncate max-w-[170px]">RSUD dr. Mohamad Saleh</span>
+                </div>
+                <div class="flex justify-between items-center text-muted-foreground">
+                  <span>Status Akun:</span>
+                  <span class="font-semibold text-emerald-500 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Aktif di SIMRS
+                  </span>
+                </div>
+                <div v-if="activeUser.email" class="flex justify-between items-center text-muted-foreground">
+                  <span>Email:</span>
+                  <span class="font-mono text-foreground truncate max-w-[170px]">{{ activeUser.email }}</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="pt-3 space-y-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="w-full h-8 text-xs justify-start gap-2 rounded-xl border-border"
+                  @click="openProfileModal"
+                >
+                  <User class="w-3.5 h-3.5 text-primary" />
+                  <span>Detail Profil & Sertifikat BSrE</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="w-full h-8 text-xs justify-start gap-2 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  @click="handleLogout"
+                >
+                  <LogOut class="w-3.5 h-3.5" />
+                  <span>Keluar dari Aplikasi</span>
+                </Button>
+              </div>
+            </Card>
+          </div>
+
+          <!-- Tombol Keluar Langsung (Logout) -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-9 w-9 rounded-xl border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+            title="Keluar / Ganti Akun"
+            @click="handleLogout"
+          >
+            <LogOut class="w-4 h-4" />
+          </Button>
         </div>
       </header>
 
@@ -245,39 +399,119 @@
         <div class="font-mono text-[10px]">Permenkes No. 24/2022 • UU ITE</div>
       </footer>
     </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL DETAIL PROFIL & STATUS SERTIFIKAT BSRE                          -->
+    <!-- ===================================================================== -->
+    <AppDialog
+      v-model="showProfileModal"
+      title="Profil Pegawai & Kredensial TTE"
+      description="Informasi akun pegawai RSUD dr. Mohamad Saleh terintegrasi Balai Sertifikasi Elektronik (BSrE BSSN)"
+      max-width="sm:max-w-lg"
+      cancel-text="Tutup"
+    >
+      <div class="space-y-4 py-1 text-xs">
+        <!-- Profile Banner -->
+        <div class="p-4 rounded-2xl bg-gradient-to-tr from-muted/80 to-muted/30 border border-border flex items-center gap-4">
+          <Avatar size="sm" class="h-16 w-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-black text-xl ring-4 ring-primary/20 shrink-0">
+            <AvatarFallback class="font-bold text-lg bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
+              {{ userInitials }}
+            </AvatarFallback>
+          </Avatar>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-base font-bold text-foreground leading-tight">
+              {{ activeUser.nama || activeUser.username }}
+            </h3>
+            <p class="text-xs text-muted-foreground font-mono mt-0.5">
+              {{ activeUser.nip ? `NIP: ${activeUser.nip}` : `ID Akun: ${activeUser.id}` }}
+            </p>
+            <div class="mt-2 flex items-center gap-2">
+              <Badge class="bg-primary text-primary-foreground text-[10px] uppercase font-bold">
+                {{ formatRole(activeUser.role) }}
+              </Badge>
+              <Badge variant="outline" class="text-[10px] text-emerald-500 border-emerald-500/30 font-medium">
+                Pegawai Aktif SIMRS
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail Data Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div class="p-3 bg-muted/40 rounded-xl border border-border">
+            <span class="text-[10px] text-muted-foreground uppercase font-mono block">Username SIMRS</span>
+            <span class="font-bold text-foreground mt-0.5 block font-mono">{{ activeUser.username || '-' }}</span>
+          </div>
+          <div class="p-3 bg-muted/40 rounded-xl border border-border">
+            <span class="text-[10px] text-muted-foreground uppercase font-mono block">NIP / ID ASN</span>
+            <span class="font-bold text-foreground mt-0.5 block font-mono">{{ activeUser.nip || '-' }}</span>
+          </div>
+          <div class="p-3 bg-muted/40 rounded-xl border border-border">
+            <span class="text-[10px] text-muted-foreground uppercase font-mono block">Instansi / Unit Kerja</span>
+            <span class="font-bold text-foreground mt-0.5 block truncate">UOBK RSUD dr. Mohamad Saleh</span>
+          </div>
+          <div class="p-3 bg-muted/40 rounded-xl border border-border">
+            <span class="text-[10px] text-muted-foreground uppercase font-mono block">Metode Login</span>
+            <span class="font-bold text-primary mt-0.5 block">SIMRS Mobile QR / SSO</span>
+          </div>
+        </div>
+
+        <!-- Box Status BSrE -->
+        <div class="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <ShieldCheck class="w-4 h-4" />
+              Sertifikat Elektronik BSrE BSSN
+            </span>
+            <span class="text-[10px] font-mono text-emerald-500 uppercase font-bold">Siap Menandatangani</span>
+          </div>
+          <p class="text-[11px] text-muted-foreground leading-relaxed">
+            Kredensial dan hak tanda tangan elektronik Anda telah terintegrasi dengan gateway BSrE BSSN untuk pengesahan resume medis dan surat kematian elektronik.
+          </p>
+        </div>
+      </div>
+      <template #footer="{ close }">
+        <Button variant="outline" size="sm" class="rounded-xl text-xs" @click="close">
+          Tutup
+        </Button>
+      </template>
+    </AppDialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { authApi, notificationApi } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import AppDialog from '@/components/AppDialog.vue'
 import {
   ShieldCheck,
   LayoutDashboard,
   FileText,
   Inbox,
   Archive,
-  Sparkles,
+  UploadCloud,
   Sun,
   Moon,
   Bell,
-  Activity
+  Activity,
+  LogOut,
+  User,
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-vue-next'
 
-const roles = [
-  { id: 'dr_a', username: 'dr_rizki', role: 'dokter', label: 'DPJP (Dokter)' },
-  { id: 'pr', username: 'perawat_dinda', role: 'perawat', label: 'Perawat Ranap' },
-  { id: 'adm', username: 'admin', role: 'admin', label: 'Admin RM' }
-]
+const router = useRouter()
 
 const navMenuItems = [
   { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'inbox', label: 'Inbox TTE', icon: Inbox },
   { id: 'dokumen', label: 'Dokumen', icon: FileText },
-  { id: 'vector', label: 'Pencarian Semantik AI', icon: Sparkles }
+  { id: 'upload', label: 'Upload & TTE PDF', icon: UploadCloud }
 ]
 
 const activeNav = ref('dashboard') // Menu pertama yang aktif adalah dashboard!
@@ -289,11 +523,49 @@ const toggleSidebar = () => {
   localStorage.setItem('sidebar-mini', isSidebarMini.value ? 'true' : 'false')
 }
 
+// User Profile State (Terintegrasi SIMRS)
 const activeUser = ref({
-  id: 1,
-  username: 'dr_rizki',
-  nama: 'dr. RIA NURMALA SETYANINGRUM',
-  role: 'dokter'
+  id: null,
+  username: '',
+  nama: 'Memuat Profil...',
+  role: 'dokter',
+  nip: '',
+  email: ''
+})
+
+const showProfileDropdown = ref(false)
+const showProfileModal = ref(false)
+
+const toggleProfileDropdown = () => {
+  showProfileDropdown.value = !showProfileDropdown.value
+  if (showProfileDropdown.value) {
+    showNotifDropdown.value = false
+  }
+}
+
+const openProfileModal = () => {
+  showProfileDropdown.value = false
+  showProfileModal.value = true
+}
+
+const formatRole = (role) => {
+  if (!role) return 'Petugas'
+  const r = role.toLowerCase()
+  if (r.includes('dokter')) return 'Dokter DPJP'
+  if (r.includes('perawat')) return 'Perawat Ranap'
+  if (r.includes('admin') || r.includes('it') || r.includes('programmer')) return 'IT Administrator'
+  if (r.includes('rekam') || r.includes('rm')) return 'Perekam Medis'
+  return role.toUpperCase()
+}
+
+const userInitials = computed(() => {
+  const name = activeUser.value?.nama || activeUser.value?.username || 'User'
+  const clean = name.replace(/^(dr\.|drg\.|prof\.|ns\.)\s*/i, '').trim()
+  const words = clean.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase()
+  }
+  return clean.substring(0, 2).toUpperCase()
 })
 
 const pendingCount = ref(0)
@@ -327,6 +599,7 @@ const onChildSwitchTab = (tabId) => {
 const toggleNotificationDropdown = () => {
   showNotifDropdown.value = !showNotifDropdown.value
   if (showNotifDropdown.value) {
+    showProfileDropdown.value = false
     loadNotifications()
   }
 }
@@ -342,23 +615,34 @@ const loadNotifications = async () => {
   }
 }
 
-const switchRole = async (target) => {
-  try {
-    const res = await authApi.login({
-      username: target.username,
-      password: 'password123'
-    })
-    localStorage.setItem('access_token', res.data.access_token)
-    activeUser.value = res.data.user
-  } catch (err) {
-    activeUser.value = {
-      id: 1,
-      username: target.username,
-      nama: target.role === 'dokter' ? 'dr. RIA NURMALA SETYANINGRUM' : 'Petugas E-RM',
-      role: target.role
+const initCurrentUser = async () => {
+  // 1. Ambil dari localStorage terlebih dahulu agar instan
+  const cachedUserStr = localStorage.getItem('user')
+  if (cachedUserStr) {
+    try {
+      const parsed = JSON.parse(cachedUserStr)
+      if (parsed && (parsed.nama || parsed.username)) {
+        activeUser.value = parsed
+      }
+    } catch (e) {
+      console.warn('Gagal membaca cache user:', e)
     }
   }
-  loadNotifications()
+
+  // 2. Fetch data profile terverifikasi dari /auth/me
+  try {
+    const res = await authApi.me()
+    if (res.data) {
+      activeUser.value = res.data
+      localStorage.setItem('user', JSON.stringify(res.data))
+    }
+  } catch (err) {
+    console.warn('Gagal mengambil profil akun dari /auth/me:', err)
+    // Jika tidak ada token sama sekali, arahkan ke login
+    if (!localStorage.getItem('access_token')) {
+      router.push('/login')
+    }
+  }
 }
 
 const goToBatchSign = () => {
@@ -367,10 +651,20 @@ const goToBatchSign = () => {
   window.dispatchEvent(new CustomEvent('open-inbox-tte'))
 }
 
+const handleLogout = () => {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('user')
+  router.push('/login')
+}
+
 onMounted(() => {
   // Inisialisasi Tema: DEFAULT LIGHT MODE sesuai instruksi pengguna
   const savedTheme = localStorage.getItem('theme') || 'light'
   applyTheme(savedTheme === 'dark')
+
+  // Inisialisasi Profil Pegawai SIMRS
+  initCurrentUser()
+  loadNotifications()
 
   // Listen event perubahan tab dari widget jika ada
   window.addEventListener('set-active-tab', (e) => {
@@ -378,7 +672,5 @@ onMounted(() => {
       activeNav.value = e.detail
     }
   })
-
-  switchRole(roles[0])
 })
 </script>

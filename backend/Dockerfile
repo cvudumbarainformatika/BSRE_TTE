@@ -2,12 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (compiler and libpq dev for psycopg2)
+# Install system dependencies (compiler, libpq dev, dan LibreOffice headless untuk konversi Word/EPUB ke PDF)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
     curl \
+    libreoffice-writer-nogui \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

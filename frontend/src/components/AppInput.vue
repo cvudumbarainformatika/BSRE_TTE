@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-1">
     <div v-if="label || $slots['label-right']" class="flex items-center justify-between">
-      <Label v-if="label" :for="id" class="text-xs font-bold text-slate-700">{{ label }}</Label>
+      <Label v-if="label" :for="id" class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ label }}</Label>
       <slot name="label-right" />
     </div>
 
@@ -17,6 +17,7 @@
         :placeholder="placeholder"
         v-model="localValue"
         :class="[
+          'bg-background text-foreground font-medium placeholder:font-normal placeholder:text-muted-foreground/50',
           $attrs.class,
           { 'pl-9': !!$slots.prefix, 'pr-10': !!$slots.suffix, 'border-destructive': !!error }
         ]"
