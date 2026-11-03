@@ -151,45 +151,48 @@
               placeholder="Pilih Kategori..."
             />
 
-            <!-- PENGATUR UKURAN QR CODE STEMPEL (Kecil, Sedang, Besar) -->
+            <!-- PENGATUR UKURAN & POSISI STEMPEL QR DINAMIS (LIVE DRAG & RESIZE) -->
             <div class="p-3.5 rounded-xl bg-muted/40 border border-border space-y-2.5">
               <div class="flex items-center justify-between text-xs">
                 <span class="font-bold text-foreground flex items-center gap-1.5">
                   <Maximize2 class="w-3.5 h-3.5 text-primary" />
                   <span>Ukuran Stempel QR:</span>
                 </span>
-                <Badge variant="outline" class="font-mono text-xs px-2 py-0.5 text-primary border-primary/30 font-bold">
+                <Badge variant="outline" class="font-mono text-xs px-2.5 py-0.5 text-primary border-primary/30 font-bold bg-primary/5">
                   {{ qrSizeLabel }}
                 </Badge>
               </div>
 
-              <div class="grid grid-cols-3 gap-2">
+              <!-- Info Live & Petunjuk Seret Bebas -->
+              <div class="rounded-lg bg-background/80 border border-border/80 p-2.5 space-y-1.5 text-xs text-muted-foreground">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Status Penempatan:</span>
+                  </span>
+                  <span class="font-mono font-medium text-foreground">
+                    Hal. {{ form.target_page }} • X: {{ stampXPercent.toFixed(1) }}% • Y: {{ stampYPercent.toFixed(1) }}%
+                  </span>
+                </div>
+                <div class="text-[11px] leading-relaxed text-muted-foreground/90 flex items-start gap-1.5 pt-1 border-t border-border/50">
+                  <span class="text-primary font-bold">✨</span>
+                  <span>
+                    <strong>Seret Bebas:</strong> Geser stempel ke posisi manapun di kanvas, dan tarik sudut stempel (handle resize) untuk memperbesar atau memperkecil ukuran QR secara bebas dan presisi.
+                  </span>
+                </div>
+              </div>
+
+              <!-- Tombol Reset Cepat Posisi & Ukuran -->
+              <div class="flex items-center justify-end">
                 <Button
                   type="button"
+                  variant="ghost"
                   size="sm"
-                  :variant="selectedSizePreset === 'small' ? 'default' : 'outline'"
-                  class="rounded-lg text-xs h-8 font-medium border-border"
-                  @click="setSizePreset('small')"
+                  class="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
+                  @click="resetStampToDefault"
                 >
-                  Kecil (2.0 cm)
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  :variant="selectedSizePreset === 'medium' ? 'default' : 'outline'"
-                  class="rounded-lg text-xs h-8 font-medium border-border"
-                  @click="setSizePreset('medium')"
-                >
-                  Sedang (2.4 cm)
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  :variant="selectedSizePreset === 'large' ? 'default' : 'outline'"
-                  class="rounded-lg text-xs h-8 font-medium border-border"
-                  @click="setSizePreset('large')"
-                >
-                  Besar (3.0 cm)
+                  <RotateCcw class="w-3 h-3" />
+                  <span>Reset Ukuran & Posisi</span>
                 </Button>
               </div>
             </div>
@@ -387,9 +390,52 @@
                   </div>
                 </div>
 
-                <!-- Floating Coordinates & Dimension Tooltip -->
-                <div class="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900/90 text-cyan-300 text-[10px] font-mono rounded shadow pointer-events-none whitespace-nowrap border border-slate-700">
-                  QR BSrE: {{ qrSizeLabel }} (X: {{ stampXPercent.toFixed(1) }}%, Y: {{ stampYPercent.toFixed(1) }}%)
+                <!-- 4 Interactive Resize Handles di Setiap Sudut Stempel (Aspect Ratio 1:1) -->
+                <!-- Sudut Kiri-Atas (NW) -->
+                <div
+                  class="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nwse-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
+                  title="Seret untuk mengubah ukuran QR"
+                  @mousedown.stop="startResize($event, 'nw')"
+                  @touchstart.stop="startResizeTouch($event, 'nw')"
+                >
+                  <div class="w-1 h-1 bg-primary rounded-full"></div>
+                </div>
+
+                <!-- Sudut Kanan-Atas (NE) -->
+                <div
+                  class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nesw-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
+                  title="Seret untuk mengubah ukuran QR"
+                  @mousedown.stop="startResize($event, 'ne')"
+                  @touchstart.stop="startResizeTouch($event, 'ne')"
+                >
+                  <div class="w-1 h-1 bg-primary rounded-full"></div>
+                </div>
+
+                <!-- Sudut Kiri-Bawah (SW) -->
+                <div
+                  class="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nesw-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
+                  title="Seret untuk mengubah ukuran QR"
+                  @mousedown.stop="startResize($event, 'sw')"
+                  @touchstart.stop="startResizeTouch($event, 'sw')"
+                >
+                  <div class="w-1 h-1 bg-primary rounded-full"></div>
+                </div>
+
+                <!-- Sudut Kanan-Bawah (SE) - Handle Utama Beraksen Primary -->
+                <div
+                  class="absolute -bottom-2 -right-2 w-5 h-5 bg-primary border-2 border-white rounded-full cursor-nwse-resize shadow-lg hover:scale-125 transition-transform z-30 flex items-center justify-center ring-2 ring-primary/30"
+                  title="Tarik sudut ini untuk memperbesar atau memperkecil QR"
+                  @mousedown.stop="startResize($event, 'se')"
+                  @touchstart.stop="startResizeTouch($event, 'se')"
+                >
+                  <Maximize2 class="w-2.5 h-2.5 text-white" />
+                </div>
+
+                <!-- Floating Coordinates & Dimension Tooltip Real-time -->
+                <div class="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-slate-900/95 text-cyan-300 text-[10px] font-mono rounded-md shadow-lg pointer-events-none whitespace-nowrap border border-slate-700/80 flex items-center gap-1.5 backdrop-blur-xs">
+                  <span class="font-bold text-white">{{ qrSizeLabel }}</span>
+                  <span class="text-slate-400">|</span>
+                  <span>X: {{ stampXPercent.toFixed(1) }}%, Y: {{ stampYPercent.toFixed(1) }}%</span>
                 </div>
               </div>
 
@@ -537,25 +583,26 @@ const signedResult = ref(null)
 // =========================================================================
 // PENGATUR UKURAN QR CODE (1:1 Aspect Ratio)
 // =========================================================================
-const selectedSizePreset = ref('medium')
-const qrWidthPercent = ref(12.5) // ~2.4 cm pada halaman A4 standar (595pt)
+const qrWidthPercent = ref(12.5) // Default ~2.6 cm pada halaman A4 standar (595pt)
 
-const setSizePreset = (preset) => {
-  selectedSizePreset.value = preset
-  if (preset === 'small') {
-    qrWidthPercent.value = 10.0 // ~2.0 cm
-  } else if (preset === 'medium') {
-    qrWidthPercent.value = 12.5 // ~2.4 cm
-  } else if (preset === 'large') {
-    qrWidthPercent.value = 16.0 // ~3.0 cm
-  }
-}
+// Ukuran fisik riil terhitung (berdasarkan standar lebar kertas A4 = 21.0 cm / 595.28 pt)
+const qrSizeCm = computed(() => {
+  return ((qrWidthPercent.value / 100) * 21.0).toFixed(1)
+})
+
+const qrSizePt = computed(() => {
+  return Math.round((qrWidthPercent.value / 100) * 595.28)
+})
 
 const qrSizeLabel = computed(() => {
-  if (selectedSizePreset.value === 'small') return '2.0 x 2.0 cm'
-  if (selectedSizePreset.value === 'large') return '3.0 x 3.0 cm'
-  return '2.4 x 2.4 cm'
+  return `${qrSizeCm.value} x ${qrSizeCm.value} cm (${qrSizePt.value} pt)`
 })
+
+const resetStampToDefault = () => {
+  stampXPercent.value = 70.0
+  stampYPercent.value = 80.0
+  qrWidthPercent.value = 12.5
+}
 
 // Draggable Coordinate State (Persentase 0 - 100%)
 const stampXPercent = ref(70.0)
@@ -680,11 +727,14 @@ const onDragging = (e) => {
   const deltaXPercent = (deltaXPixels / rect.width) * 100
   const deltaYPercent = (deltaYPixels / rect.height) * 100
 
+  const containerRatio = rect.width / (rect.height || 1)
+  const stampHeightPercent = qrWidthPercent.value * containerRatio
+
   let newX = initialStampX + deltaXPercent
   let newY = initialStampY + deltaYPercent
 
-  newX = Math.max(1, Math.min(newX, 99 - qrWidthPercent.value))
-  newY = Math.max(1, Math.min(newY, 95))
+  newX = Math.max(0.5, Math.min(newX, 99.5 - qrWidthPercent.value))
+  newY = Math.max(0.5, Math.min(newY, 99.5 - stampHeightPercent))
 
   stampXPercent.value = newX
   stampYPercent.value = newY
@@ -700,11 +750,14 @@ const onDraggingTouch = (e) => {
   const deltaXPercent = (deltaXPixels / rect.width) * 100
   const deltaYPercent = (deltaYPixels / rect.height) * 100
 
+  const containerRatio = rect.width / (rect.height || 1)
+  const stampHeightPercent = qrWidthPercent.value * containerRatio
+
   let newX = initialStampX + deltaXPercent
   let newY = initialStampY + deltaYPercent
 
-  newX = Math.max(1, Math.min(newX, 99 - qrWidthPercent.value))
-  newY = Math.max(1, Math.min(newY, 95))
+  newX = Math.max(0.5, Math.min(newX, 99.5 - qrWidthPercent.value))
+  newY = Math.max(0.5, Math.min(newY, 99.5 - stampHeightPercent))
 
   stampXPercent.value = newX
   stampYPercent.value = newY
@@ -722,9 +775,135 @@ const stopDragTouch = () => {
   window.removeEventListener('touchend', stopDragTouch)
 }
 
+// =========================================================================
+// LOGIKA RESIZE SUDUT STEMPEL (1:1 ASPECT RATIO, 4 SUDUT INTERAKTIF)
+// =========================================================================
+let isResizing = false
+let resizeCorner = 'se'
+let resizeStartX = 0
+let resizeStartY = 0
+let initialResizeWidth = 0
+let initialResizeX = 0
+let initialResizeY = 0
+
+const startResize = (e, corner = 'se') => {
+  if (!pageContainerRef.value) return
+  isResizing = true
+  resizeCorner = corner
+  resizeStartX = e.clientX
+  resizeStartY = e.clientY
+  initialResizeWidth = qrWidthPercent.value
+  initialResizeX = stampXPercent.value
+  initialResizeY = stampYPercent.value
+
+  window.addEventListener('mousemove', onResizing)
+  window.addEventListener('mouseup', stopResize)
+}
+
+const startResizeTouch = (e, corner = 'se') => {
+  if (!pageContainerRef.value || !e.touches[0]) return
+  isResizing = true
+  resizeCorner = corner
+  resizeStartX = e.touches[0].clientX
+  resizeStartY = e.touches[0].clientY
+  initialResizeWidth = qrWidthPercent.value
+  initialResizeX = stampXPercent.value
+  initialResizeY = stampYPercent.value
+
+  window.addEventListener('touchmove', onResizingTouch, { passive: false })
+  window.addEventListener('touchend', stopResizeTouch)
+}
+
+const handleResizeMath = (clientX, clientY) => {
+  if (!isResizing || !pageContainerRef.value) return
+  const rect = pageContainerRef.value.getBoundingClientRect()
+  const deltaXPixels = clientX - resizeStartX
+  const deltaXPercent = (deltaXPixels / rect.width) * 100
+  const containerRatio = rect.width / (rect.height || 1)
+
+  const MIN_WIDTH = 7.0  // ~1.5 cm
+  const MAX_WIDTH = 35.0 // ~7.4 cm
+
+  if (resizeCorner === 'se') {
+    // Kanan-Bawah: memperbesar ke kanan dan bawah
+    let targetWidth = initialResizeWidth + deltaXPercent
+    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+    targetWidth = Math.min(targetWidth, 99.5 - initialResizeX)
+
+    const targetHeightPercent = targetWidth * containerRatio
+    if (initialResizeY + targetHeightPercent > 99.5) {
+      targetWidth = (99.5 - initialResizeY) / containerRatio
+    }
+    qrWidthPercent.value = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+  } else if (resizeCorner === 'nw') {
+    // Kiri-Atas: memperbesar ke kiri dan atas (anchor di pojok kanan-bawah)
+    let targetWidth = initialResizeWidth - deltaXPercent
+    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+
+    const widthDiff = targetWidth - initialResizeWidth
+    let newX = initialResizeX - widthDiff
+    let newY = initialResizeY - (widthDiff * containerRatio)
+
+    if (newX >= 0.5 && newY >= 0.5) {
+      qrWidthPercent.value = targetWidth
+      stampXPercent.value = newX
+      stampYPercent.value = newY
+    }
+  } else if (resizeCorner === 'ne') {
+    // Kanan-Atas: memperbesar ke kanan dan atas (anchor di pojok kiri-bawah)
+    let targetWidth = initialResizeWidth + deltaXPercent
+    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+
+    const widthDiff = targetWidth - initialResizeWidth
+    let newY = initialResizeY - (widthDiff * containerRatio)
+
+    if (initialResizeX + targetWidth <= 99.5 && newY >= 0.5) {
+      qrWidthPercent.value = targetWidth
+      stampYPercent.value = newY
+    }
+  } else if (resizeCorner === 'sw') {
+    // Kiri-Bawah: memperbesar ke kiri dan bawah (anchor di pojok kanan-atas)
+    let targetWidth = initialResizeWidth - deltaXPercent
+    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+
+    const widthDiff = targetWidth - initialResizeWidth
+    let newX = initialResizeX - widthDiff
+    const targetHeightPercent = targetWidth * containerRatio
+
+    if (newX >= 0.5 && initialResizeY + targetHeightPercent <= 99.5) {
+      qrWidthPercent.value = targetWidth
+      stampXPercent.value = newX
+    }
+  }
+}
+
+const onResizing = (e) => {
+  handleResizeMath(e.clientX, e.clientY)
+}
+
+const onResizingTouch = (e) => {
+  if (!e.touches[0]) return
+  e.preventDefault()
+  handleResizeMath(e.touches[0].clientX, e.touches[0].clientY)
+}
+
+const stopResize = () => {
+  isResizing = false
+  window.removeEventListener('mousemove', onResizing)
+  window.removeEventListener('mouseup', stopResize)
+}
+
+const stopResizeTouch = () => {
+  isResizing = false
+  window.removeEventListener('touchmove', onResizingTouch)
+  window.removeEventListener('touchend', stopResizeTouch)
+}
+
 onUnmounted(() => {
   stopDrag()
   stopDragTouch()
+  stopResize()
+  stopResizeTouch()
 })
 
 // =========================================================================

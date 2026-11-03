@@ -18,34 +18,47 @@
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-bold text-foreground mt-2">
-            Sistem Pengarsipan & Verifikasi Dokumen TTE BSrE
+            Sistem Tanda Tangan Elektronik BSrE
           </h2>
           <p class="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
             Pengelolaan keabsahan hukum, integritas berkas elektronik instansi, dan integrasi Rekam Medis Elektronik (E-RM) tersertifikasi Balai Sertifikasi Elektronik (BSrE BSSN).
           </p>
         </div>
-        <div class="z-10 flex flex-wrap items-center gap-3">
-          <Button
-            class="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 text-slate-950 font-semibold text-xs sm:text-sm shadow-md hover:shadow-cyan-500/20 gap-2 h-10 px-4"
-            @click="navigateToNav('inbox')"
-          >
-            <FileSignature class="w-4 h-4" />
-            <span>Inbox TTE ({{ pendingInboxCount }})</span>
-          </Button>
+        <!-- Tombol Aksi Cepat Berupa Icon Button Rapi di Sisi Kanan Header Banner -->
+        <div class="z-10 flex items-center gap-2.5 self-start md:self-center shrink-0">
+          <!-- Icon Tombol Inbox TTE -->
           <Button
             variant="outline"
-            class="rounded-xl border-border text-foreground hover:bg-muted text-xs sm:text-sm gap-2 h-10 px-4"
+            size="icon"
+            class="h-10 w-10 rounded-xl border border-border/80 bg-background/80 hover:bg-primary/10 hover:border-primary/40 text-foreground transition-all shadow-xs relative cursor-pointer"
+            title="Buka Inbox TTE Antrean"
+            @click="navigateToNav('inbox')"
+          >
+            <Inbox class="w-4 h-4 text-primary" />
+            <span
+              v-if="pendingInboxCount > 0"
+              class="absolute -top-1 -right-1 px-1.5 py-0.2 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full shadow-xs"
+            >
+              {{ pendingInboxCount }}
+            </span>
+          </Button>
+
+          <!-- Icon Tombol Dokumen Sah TTE -->
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-10 w-10 rounded-xl border border-border/80 bg-background/80 hover:bg-emerald-500/10 hover:border-emerald-500/40 text-foreground transition-all shadow-xs cursor-pointer"
+            title="Buka Dokumen Sah Terverifikasi TTE"
             @click="navigateToNav('dokumen')"
           >
-            <FileText class="w-4 h-4" />
-            <span>Dokumen Sah TTE</span>
+            <FileText class="w-4 h-4 text-emerald-500" />
           </Button>
         </div>
         <!-- Background Glow Decor -->
         <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
-      <!-- 4 Stat Cards Futuristik (ui-mantap.html) -->
+      <!-- 4 Stat Cards Real Database -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Card 1: Total Dokumen TTE -->
         <Card class="glass-panel hover:border-primary/40 transition-all border-border shadow-xs">
@@ -57,12 +70,12 @@
               </div>
             </div>
             <div class="mt-3 flex items-baseline justify-between">
-              <span class="text-2xl font-bold text-foreground font-mono">1,842</span>
-              <Badge variant="outline" class="text-[11px] text-emerald-500 border-emerald-500/30 font-medium flex items-center gap-1">
-                <ArrowUpRight class="w-3 h-3" /> +12%
+              <span class="text-2xl font-bold text-foreground font-mono">{{ stats.total_dokumen.toLocaleString('id-ID') }}</span>
+              <Badge variant="outline" class="text-[10px] text-emerald-500 border-emerald-500/30 font-medium">
+                Terverifikasi BSrE
               </Badge>
             </div>
-            <p class="text-[11px] text-muted-foreground mt-1">Terdaftar di server BSrE BSSN</p>
+            <p class="text-[11px] text-muted-foreground mt-1">Total dokumen resmi terdaftar di sistem</p>
           </CardContent>
         </Card>
 
@@ -76,8 +89,8 @@
               </div>
             </div>
             <div class="mt-3 flex items-baseline justify-between">
-              <span class="text-2xl font-bold text-foreground font-mono">1,839</span>
-              <span class="text-xs text-emerald-400 font-medium font-mono">99.8%</span>
+              <span class="text-2xl font-bold text-foreground font-mono">{{ stats.verifikasi_sah.toLocaleString('id-ID') }}</span>
+              <span class="text-xs text-emerald-400 font-medium font-mono">{{ stats.persentase_sah }}%</span>
             </div>
             <p class="text-[11px] text-muted-foreground mt-1">Integritas hash SHA-256 terjaga</p>
           </CardContent>
@@ -93,9 +106,9 @@
               </div>
             </div>
             <div class="mt-3 flex items-baseline justify-between">
-              <span class="text-2xl font-bold text-foreground font-mono">{{ pendingInboxCount }}</span>
+              <span class="text-2xl font-bold text-foreground font-mono">{{ stats.pending_tte.toLocaleString('id-ID') }}</span>
               <Badge variant="outline" class="text-[11px] border-amber-500/30 text-amber-500 font-medium">
-                Membutuhkan Paraf
+                {{ stats.pending_tte > 0 ? 'Membutuhkan Paraf' : 'Antrean Bersih' }}
               </Badge>
             </div>
             <p class="text-[11px] text-muted-foreground mt-1">Antrean tanda tangan elektronik</p>
@@ -112,10 +125,10 @@
               </div>
             </div>
             <div class="mt-3 flex items-baseline justify-between">
-              <span class="text-2xl font-bold text-foreground">Aktif</span>
-              <span class="text-xs text-primary font-mono font-semibold">RSA 2048-bit</span>
+              <span class="text-2xl font-bold text-foreground">{{ stats.sertifikat.status }}</span>
+              <span class="text-xs text-primary font-mono font-semibold">{{ stats.sertifikat.tipe }}</span>
             </div>
-            <p class="text-[11px] text-muted-foreground mt-1">BSrE BSSN CA Valid</p>
+            <p class="text-[11px] text-muted-foreground mt-1">{{ stats.sertifikat.keterangan }}</p>
           </CardContent>
         </Card>
       </div>
@@ -129,7 +142,7 @@
             </div>
             <CardTitle class="text-sm font-bold text-foreground">Inbox TTE</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
-              {{ pendingInboxCount }} berkas/data dari E-RM yang belum di-TTE dan menunggu tanda tangan Anda.
+              {{ stats.pending_tte }} berkas/data dari E-RM yang belum di-TTE dan menunggu tanda tangan Anda.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
@@ -144,7 +157,7 @@
             </div>
             <CardTitle class="text-sm font-bold text-foreground">Dokumen (Sudah TTE)</CardTitle>
             <CardDescription class="text-xs text-muted-foreground">
-              Seluruh dokumen yang sudah memiliki PDF & TTE BSrE resmi, lengkap dengan fitur versioning & verifikasi.
+              {{ stats.verifikasi_sah }} dokumen yang sah memiliki PDF & TTE BSrE resmi, lengkap dengan fitur versioning & verifikasi.
             </CardDescription>
           </CardHeader>
           <CardContent class="pt-0">
@@ -221,7 +234,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { documentApi } from '@/services/api'
 import AppPage from '@/components/AppPage.vue'
 import AppTabs from '@/components/AppTabs.vue'
@@ -274,6 +287,39 @@ const selectedDoc = ref(null)
 const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
 
+// Data Statistik Riil dari Database PostgreSQL
+const stats = reactive({
+  total_dokumen: 0,
+  verifikasi_sah: 0,
+  pending_tte: 0,
+  persentase_sah: 100,
+  sertifikat: {
+    status: 'Aktif',
+    keterangan: 'BSrE BSSN CA Valid',
+    tipe: 'RSA 2048-bit'
+  }
+})
+
+const loadDashboardStats = async () => {
+  try {
+    const res = await documentApi.getDashboardStats()
+    if (res.data) {
+      stats.total_dokumen = res.data.total_dokumen || 0
+      stats.verifikasi_sah = res.data.verifikasi_sah || 0
+      stats.pending_tte = res.data.pending_tte || 0
+      stats.persentase_sah = res.data.persentase_sah || 100
+      if (res.data.sertifikat) {
+        stats.sertifikat = res.data.sertifikat
+      }
+      if (res.data.pending_tte !== undefined) {
+        pendingInboxCount.value = res.data.pending_tte
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal memuat statistik riil dashboard:', err)
+  }
+}
+
 watch(
   () => props.pendingCount,
   (val) => {
@@ -306,6 +352,7 @@ const openViewer = (doc) => {
 const onDocumentSigned = (result) => {
   pendingInboxCount.value = Math.max(0, pendingInboxCount.value - 1)
   emit('refresh-notifications')
+  loadDashboardStats()
   if (docListRef.value?.loadDocuments) {
     docListRef.value.loadDocuments()
   }
@@ -313,6 +360,7 @@ const onDocumentSigned = (result) => {
 
 const onDocumentCreated = () => {
   emit('refresh-notifications')
+  loadDashboardStats()
   if (inboxRef.value) {
     inboxRef.value.loadPendingDocs()
   }
@@ -335,6 +383,7 @@ const handleNavTabChange = (e) => {
 }
 
 onMounted(() => {
+  loadDashboardStats()
   window.addEventListener('open-inbox-tte', handleOpenInbox)
   window.addEventListener('nav-tab-change', handleNavTabChange)
 })

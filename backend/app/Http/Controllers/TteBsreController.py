@@ -87,7 +87,7 @@ def batch_sign_documents(
     req: BatchTteSignRequest,
     request: Request,
     db: Session = Depends(get_session),
-    current_user: User = Depends(require_roles(["dokter"]))
+    current_user: User = Depends(require_roles(["dokter", "ppa", "perawat", "admin"]))
 ):
     """
     Tanda Tangan Banyak Dokumen Sekaligus (Batch Sign TTE BSRE):
@@ -278,7 +278,7 @@ def sign_document_bsre(
     req: TteSignRequest,
     request: Request,
     db: Session = Depends(get_session),
-    current_user: User = Depends(require_roles(["dokter"]))
+    current_user: User = Depends(require_roles(["dokter", "ppa", "perawat", "admin"]))
 ):
     """Sign tunggal"""
     batch_res = batch_sign_documents(

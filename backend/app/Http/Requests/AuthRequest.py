@@ -12,9 +12,15 @@ class TokenResponse(BaseModel):
 
 class SsoLoginRequest(BaseModel):
     sso_token: Optional[str] = None
+    sso_ticket: Optional[str] = None
     nip: Optional[str] = None
     username: Optional[str] = None
     auth_key: Optional[str] = None
+
+class SsoTicketRequest(BaseModel):
+    nip: Optional[str] = None
+    username: Optional[str] = None
+    expires_in_seconds: Optional[int] = 300
 
 class LoginQrSimrsRequest(BaseModel):
     email: str

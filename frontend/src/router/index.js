@@ -3,6 +3,8 @@ import { createRouter, createMemoryHistory, createWebHistory, createWebHashHisto
 import routes from './routes'
 import axios from 'axios'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8005/api/v1'
+
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
@@ -14,15 +16,35 @@ export default route(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE)
   })
 
-  // Listener untuk postMessage SSO dari window parent SIMRS (jika dipasang di <iframe>)
+  // Helper untuk membersihkan query SSO dari search dan hash URL browser
+  const cleanSsoUrl = (to) => {
+    if (typeof window !== 'undefined' && window.location.search) {
+      const cleanPath = window.location.pathname + (window.location.hash || '#/')
+      window.history.replaceState(null, '', cleanPath)
+    }
+    const cleanQuery = { ...to.query }
+    delete cleanQuery.sso_ticket
+    delete cleanQuery.ticket
+    delete cleanQuery.sso_token
+    delete cleanQuery.token
+    delete cleanQuery.nip
+    delete cleanQuery.username
+    delete cleanQuery.user
+    delete cleanQuery.kd_pegawai
+    return cleanQuery
+  }
+
+  // Listener untuk postMessage SSO dari window parent SIMRS (jika di-embed di <iframe> atau modal)
   if (typeof window !== 'undefined') {
     window.addEventListener('message', async (event) => {
-      if (event.data && (event.data.type === 'SIMRS_SSO_AUTH' || event.data.sso_token)) {
+      if (event.data && (event.data.type === 'SIMRS_SSO_AUTH' || event.data.sso_token || event.data.nip || event.data.sso_ticket)) {
         const ssoToken = event.data.sso_token || event.data.token
-        const nip = event.data.nip
+        const ssoTicket = event.data.sso_ticket || event.data.ticket
+        const nip = event.data.nip || event.data.username || event.data.user
         try {
-          const res = await axios.post('/api/v1/auth/sso-login', {
+          const res = await axios.post(`${API_BASE_URL}/auth/sso-login`, {
             sso_token: ssoToken,
+            sso_ticket: ssoTicket,
             nip: nip
           })
           if (res.data && res.data.access_token) {
@@ -40,24 +62,29 @@ export default route(function (/* { store, ssrContext } */) {
   }
 
   Router.beforeEach(async (to, from, next) => {
-    // 1. Cek apakah ada parameter SSO dari query URL (misal: ?sso_token=... atau ?token=... atau ?nip=...)
-    const ssoToken = to.query.sso_token || to.query.token
-    const ssoNip = to.query.nip
-    if (ssoToken || ssoNip) {
+    // 1. Ekstrak parameter SSO dari Hash Query (to.query) maupun Window Search (?param di luar hash)
+    let searchParams = null
+    if (typeof window !== 'undefined' && window.location.search) {
+      searchParams = new URLSearchParams(window.location.search)
+    }
+
+    const ssoTicket = to.query.sso_ticket || to.query.ticket || searchParams?.get('sso_ticket') || searchParams?.get('ticket')
+    const ssoToken = to.query.sso_token || to.query.token || searchParams?.get('sso_token') || searchParams?.get('token')
+    const ssoNip = to.query.nip || to.query.username || to.query.user || to.query.kd_pegawai ||
+                   searchParams?.get('nip') || searchParams?.get('username') || searchParams?.get('user') || searchParams?.get('kd_pegawai')
+
+    if (ssoTicket || ssoToken || ssoNip) {
       try {
-        const res = await axios.post('/api/v1/auth/sso-login', {
+        const res = await axios.post(`${API_BASE_URL}/auth/sso-login`, {
+          sso_ticket: typeof ssoTicket === 'string' ? ssoTicket : undefined,
           sso_token: typeof ssoToken === 'string' ? ssoToken : undefined,
           nip: typeof ssoNip === 'string' ? ssoNip : undefined
         })
         if (res.data && res.data.access_token) {
           localStorage.setItem('access_token', res.data.access_token)
           localStorage.setItem('user', JSON.stringify(res.data.user))
-          
-          // Bersihkan query param sso_token dari URL agar rapi
-          const query = { ...to.query }
-          delete query.sso_token
-          delete query.token
-          delete query.nip
+
+          const query = cleanSsoUrl(to)
           return next({ path: to.path === '/login' ? '/' : to.path, query, replace: true })
         }
       } catch (err) {
@@ -69,7 +96,7 @@ export default route(function (/* { store, ssrContext } */) {
     const user = JSON.parse(localStorage.getItem('user') || 'null')
     const isAuthenticated = !!(token && user)
     
-    // Logic Admin sederhana
+    // Logic Admin
     const isAdmin = user?.role === 'admin' || user?.is_admin === 1
 
     // Route yang butuh login

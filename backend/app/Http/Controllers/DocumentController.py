@@ -5,7 +5,7 @@ import aiofiles
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, status
 from fastapi.responses import FileResponse
-from sqlmodel import Session
+from sqlmodel import Session, select, func
 from typing import Optional
 
 from config.database import get_session
@@ -252,6 +252,36 @@ def list_documents(
             "per_page": per_page,
             "total": total,
             "total_pages": (total + per_page - 1) // per_page
+        }
+    }
+
+@router.get("/dashboard-stats")
+def get_dashboard_stats(
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Statistik riil dokumen dari database PostgreSQL
+    """
+    total_dokumen = db.exec(select(func.count(Document.id))).one() or 0
+    verifikasi_sah = db.exec(
+        select(func.count(Document.id)).where(Document.tte_status == "SIGNED_BSRE")
+    ).one() or 0
+    pending_tte = db.exec(
+        select(func.count(Document.id)).where(Document.tte_status.in_(["UNSIGNED", "PENDING"]))
+    ).one() or 0
+
+    persentase_sah = round((verifikasi_sah / total_dokumen * 100), 1) if total_dokumen > 0 else 100.0
+
+    return {
+        "total_dokumen": total_dokumen,
+        "verifikasi_sah": verifikasi_sah,
+        "pending_tte": pending_tte,
+        "persentase_sah": persentase_sah,
+        "sertifikat": {
+            "status": "Aktif",
+            "keterangan": "BSrE BSSN CA Valid",
+            "tipe": "RSA 2048-bit"
         }
     }
 

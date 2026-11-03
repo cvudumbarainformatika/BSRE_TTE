@@ -21,7 +21,20 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 self-end md:self-center">
+      <div class="flex flex-wrap items-center gap-2 self-end md:self-center">
+        <!-- Tombol Batch TTE Utama -->
+        <Button
+          v-if="totalPending > 0"
+          class="h-8 px-3.5 gap-2 text-xs font-bold rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 shadow-md hover:shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
+          :disabled="isLoading || isSigningBatch"
+          @click="openBatchSignModal()"
+        >
+          <ShieldCheck class="w-4 h-4" />
+          <span>
+            {{ selectedDocIds.length > 0 ? `TTE Terpilih (${selectedDocIds.length})` : `TTE Sekaligus (${totalPending})` }}
+          </span>
+        </Button>
+
         <Button
           variant="outline"
           size="sm"
@@ -31,6 +44,39 @@
         >
           <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
           <span>Segarkan Inbox</span>
+        </Button>
+      </div>
+    </div>
+
+    <!-- Floating / Sticky Selection Bar saat ada dokumen dipilih -->
+    <div
+      v-if="selectedDocIds.length > 0"
+      class="px-4 py-2.5 bg-primary/10 border-b border-primary/30 flex items-center justify-between gap-3 text-xs flex-wrap transition-all"
+    >
+      <div class="flex items-center gap-2">
+        <Badge class="bg-primary text-primary-foreground font-bold text-xs">
+          {{ selectedDocIds.length }} Terpilih
+        </Badge>
+        <span class="text-foreground font-medium text-xs">
+          dokumen antrean siap ditandatangani sekaligus
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs text-muted-foreground hover:text-foreground"
+          @click="deselectAll"
+        >
+          Batalkan Pilihan
+        </Button>
+        <Button
+          size="sm"
+          class="h-7 px-3 bg-primary text-primary-foreground text-xs font-bold gap-1.5 shadow-sm hover:bg-primary/90"
+          @click="openBatchSignModal()"
+        >
+          <ShieldCheck class="w-3.5 h-3.5" />
+          <span>Lanjutkan Batch TTE ({{ selectedDocIds.length }}) →</span>
         </Button>
       </div>
     </div>
@@ -113,23 +159,31 @@
         <Table class="table-fixed w-full">
           <TableHeader>
             <TableRow class="bg-muted/40">
+              <TableHead class="w-[5%] px-3 text-center">
+                <Checkbox
+                  :checked="isAllSelected"
+                  :disabled="pendingDocs.length === 0"
+                  title="Pilih Semua Dokumen"
+                  @update:checked="toggleSelectAll"
+                />
+              </TableHead>
               <TableHead class="w-[18%] px-3 text-xs font-bold uppercase">Jenis Dokumen</TableHead>
-              <TableHead class="w-[37%] px-3 text-xs font-bold uppercase">Perihal & No. Dokumen</TableHead>
-              <TableHead class="w-[24%] px-3 text-xs font-bold uppercase">Tujuan TTE (Penandatangan)</TableHead>
-              <TableHead class="w-[11%] px-2 text-xs font-bold uppercase">Status</TableHead>
+              <TableHead class="w-[34%] px-3 text-xs font-bold uppercase">Perihal & No. Dokumen</TableHead>
+              <TableHead class="w-[23%] px-3 text-xs font-bold uppercase">Tujuan TTE (Penandatangan)</TableHead>
+              <TableHead class="w-[10%] px-2 text-xs font-bold uppercase">Status</TableHead>
               <TableHead class="w-[10%] px-3 text-xs font-bold uppercase text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             <TableRow v-if="isLoading">
-              <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
+              <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
                 Memuat daftar antrean dokumen TTE...
               </TableCell>
             </TableRow>
 
             <TableRow v-else-if="pendingDocs.length === 0">
-              <TableCell colspan="5" class="py-12 text-center text-muted-foreground text-xs">
+              <TableCell colspan="6" class="py-12 text-center text-muted-foreground text-xs">
                 Semua dokumen telah ditandatangani! Tidak ada dokumen menunggu TTE di Inbox saat ini.
               </TableCell>
             </TableRow>
@@ -138,7 +192,16 @@
               v-else
               v-for="doc in pendingDocs"
               :key="doc.id"
+              :class="{ 'bg-primary/5 border-l-2 border-l-primary': selectedDocIds.includes(doc.id) }"
             >
+              <!-- Kolom 0: Checkbox Seleksi Batch -->
+              <TableCell class="px-3 py-3 align-middle text-center" @click.stop>
+                <Checkbox
+                  :checked="selectedDocIds.includes(doc.id)"
+                  @update:checked="(val) => toggleSelectDoc(doc.id, val)"
+                />
+              </TableCell>
+
               <!-- Kolom 1: Jenis Dokumen + Versi + Waktu Diterbitkan di bawahnya -->
               <TableCell class="px-3 py-3 align-middle">
                 <div class="flex flex-nowrap items-center gap-1.5">
@@ -259,15 +322,22 @@
           v-else
           v-for="doc in pendingDocs"
           :key="`mob-${doc.id}`"
-          class="p-4 space-y-3"
+          class="p-4 space-y-3 transition-colors"
+          :class="{ 'bg-primary/5 border-l-4 border-l-primary': selectedDocIds.includes(doc.id) }"
         >
           <div class="flex items-center justify-between gap-2">
-            <Badge
-              :variant="doc.document_type === 'surat_kematian' ? 'destructive' : 'secondary'"
-              class="text-[10px] uppercase font-bold"
-            >
-              {{ formatType(doc.document_type) }}
-            </Badge>
+            <div class="flex items-center gap-2">
+              <Checkbox
+                :checked="selectedDocIds.includes(doc.id)"
+                @update:checked="(val) => toggleSelectDoc(doc.id, val)"
+              />
+              <Badge
+                :variant="doc.document_type === 'surat_kematian' ? 'destructive' : 'secondary'"
+                class="text-[10px] uppercase font-bold"
+              >
+                {{ formatType(doc.document_type) }}
+              </Badge>
+            </div>
             <span class="text-[10px] text-muted-foreground">{{ formatDateTime(doc.uploaded_at) }}</span>
           </div>
           <div class="min-w-0">
@@ -358,11 +428,74 @@
         />
       </div>
     </AppDialog>
+
+    <!-- MODAL DIALOG BATCH TTE (TTE SEKALIGUS SELURUH DOKUMEN TERPILIH) -->
+    <AppDialog
+      v-model="showBatchSignModal"
+      title="Otorisasi Batch TTE BSrE (TTE Sekaligus)"
+      description="Tanda tangan elektronik masal untuk seluruh dokumen terpilih dalam 1 kali otorisasi passphrase resmi BSrE BSSN."
+      max-width="sm:max-w-md"
+      confirm-text="Tanda Tangani Sekaligus"
+      cancel-text="Batal"
+      :confirm-disabled="!batchPassphrase || isSigningBatch"
+      :loading="isSigningBatch"
+      @confirm="executeBatchSign"
+    >
+      <div class="space-y-4 py-1 text-xs">
+        <!-- Banner Info Ringkasan Batch -->
+        <div class="p-3.5 bg-gradient-to-tr from-cyan-500/10 to-emerald-500/10 border border-cyan-500/30 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-foreground flex items-center gap-1.5 text-xs">
+              <ShieldCheck class="w-4 h-4 text-primary" />
+              <span>Ringkasan Batch Dokumen</span>
+            </span>
+            <Badge class="bg-primary text-primary-foreground font-black text-xs">
+              {{ targetBatchDocIds.length }} Dokumen
+            </Badge>
+          </div>
+          <p class="text-muted-foreground leading-relaxed text-[11px]">
+            Seluruh <strong>{{ targetBatchDocIds.length }} berkas dokumen</strong> yang Anda pilih akan dibubuhi stempel QR Code resmi dan tanda tangan digital terenkripsi RSA 2048-bit BSrE BSSN dalam satu kali proses.
+          </p>
+        </div>
+
+        <!-- Notifikasi Error jika Batch Gagal -->
+        <Alert v-if="batchErrorMsg" variant="destructive" class="bg-destructive/10 border-destructive/40 text-destructive p-3">
+          <AlertTitle class="text-xs font-bold">✕ Otorisasi Batch TTE Gagal</AlertTitle>
+          <AlertDescription class="text-[11px] mt-1 leading-relaxed">
+            {{ batchErrorMsg }}
+          </AlertDescription>
+        </Alert>
+
+        <!-- Input Passphrase BSrE -->
+        <div class="space-y-1">
+          <AppInput
+            id="batch-passphrase-input"
+            label="Passphrase / PIN Pengaman BSrE BSSN *"
+            v-model="batchPassphrase"
+            type="password"
+            placeholder="Ketik Passphrase Anda (contoh: Bsre2026.#!)"
+            hint="Otorisasi 1 kali untuk seluruh dokumen yang dipilih."
+            :error="batchErrorMsg"
+            @keyup.enter="executeBatchSign"
+          />
+        </div>
+
+        <!-- Input Catatan Pengesahan (Opsional) -->
+        <div class="space-y-1">
+          <AppInput
+            id="batch-catatan-input"
+            label="Catatan Pengesahan (Opsional)"
+            v-model="batchCatatan"
+            placeholder="Contoh: Disahkan secara masal melalui Inbox SIMRS"
+          />
+        </div>
+      </div>
+    </AppDialog>
   </Card>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { documentApi } from '@/services/api'
 import AppInput from '@/components/AppInput.vue'
 import AppDialog from '@/components/AppDialog.vue'
@@ -370,6 +503,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -390,6 +524,108 @@ const selectedType = ref('')
 const selectedSigner = ref('')
 const isLoading = ref(false)
 
+// State Seleksi & Batch Sign TTE Masal
+const selectedDocIds = ref([])
+const showBatchSignModal = ref(false)
+const batchPassphrase = ref('')
+const batchCatatan = ref('Ditandatangani secara masal via Inbox Antrean SIMRS')
+const isSigningBatch = ref(false)
+const batchErrorMsg = ref('')
+
+const isAllSelected = computed(() => {
+  return pendingDocs.value.length > 0 && selectedDocIds.value.length === pendingDocs.value.length
+})
+
+const toggleSelectAll = (checked) => {
+  if (checked) {
+    selectedDocIds.value = pendingDocs.value.map((d) => d.id)
+  } else {
+    selectedDocIds.value = []
+  }
+}
+
+const toggleSelectDoc = (id, checked) => {
+  if (checked) {
+    if (!selectedDocIds.value.includes(id)) {
+      selectedDocIds.value.push(id)
+    }
+  } else {
+    selectedDocIds.value = selectedDocIds.value.filter((item) => item !== id)
+  }
+}
+
+const deselectAll = () => {
+  selectedDocIds.value = []
+}
+
+const targetBatchDocIds = computed(() => {
+  if (selectedDocIds.value.length > 0) {
+    return selectedDocIds.value
+  }
+  return pendingDocs.value.map((d) => d.id)
+})
+
+const openBatchSignModal = (presetIds = null) => {
+  if (presetIds && Array.isArray(presetIds)) {
+    selectedDocIds.value = presetIds
+  } else if (selectedDocIds.value.length === 0) {
+    // Jika tidak ada yang diceklis, otomatis targetkan seluruh dokumen pending
+    selectedDocIds.value = pendingDocs.value.map((d) => d.id)
+  }
+  batchErrorMsg.value = ''
+  batchPassphrase.value = ''
+  batchCatatan.value = 'Ditandatangani secara masal via Inbox Antrean SIMRS'
+  showBatchSignModal.value = true
+}
+
+const executeBatchSign = async () => {
+  if (!batchPassphrase.value.trim()) {
+    batchErrorMsg.value = 'Passphrase BSrE wajib diisi untuk otorisasi Batch TTE'
+    return
+  }
+
+  const idsToSign = targetBatchDocIds.value
+  if (!idsToSign || idsToSign.length === 0) {
+    batchErrorMsg.value = 'Tidak ada dokumen yang dipilih untuk ditandatangani'
+    return
+  }
+
+  isSigningBatch.value = true
+  batchErrorMsg.value = ''
+
+  try {
+    const res = await documentApi.batchSignTte({
+      document_ids: idsToSign,
+      passphrase: batchPassphrase.value.trim(),
+      catatan: batchCatatan.value.trim() || 'Ditandatangani secara masal via Inbox Antrean SIMRS'
+    })
+
+    const signedCount = res.data?.signed_count || idsToSign.length
+    successInfo.value = {
+      message: `Sukses! Sebanyak ${signedCount} dokumen berhasil ditandatangani sekaligus via BSrE BSSN.`,
+      signer: res.data?.signer || { name: 'Pejabat Penandatangan' },
+      signed_at: new Date().toISOString()
+    }
+
+    showBatchSignModal.value = false
+    batchPassphrase.value = ''
+    selectedDocIds.value = []
+
+    await loadPendingDocs()
+    emit('document-signed', res.data)
+  } catch (err) {
+    const detail = err.response?.data?.detail
+    if (Array.isArray(detail)) {
+      batchErrorMsg.value = detail.map((d) => d.msg).join(', ')
+    } else {
+      batchErrorMsg.value = detail || 'Gagal memproses Batch TTE BSrE'
+    }
+  } finally {
+    isSigningBatch.value = false
+  }
+}
+
+// State Sign Tunggal
 const showSignModal = ref(false)
 const selectedDoc = ref(null)
 const passphrase = ref('')
@@ -408,6 +644,10 @@ const loadPendingDocs = async () => {
     totalPending.value = res.data.total_pending
     summaryByType.value = res.data.summary_by_type || {}
     summaryBySigner.value = res.data.summary_by_signer || {}
+    // Bersihkan id yang sudah tidak ada
+    selectedDocIds.value = selectedDocIds.value.filter((id) =>
+      pendingDocs.value.some((d) => d.id === id)
+    )
   } catch (err) {
     console.error('Gagal mengambil antrean pending:', err)
   } finally {

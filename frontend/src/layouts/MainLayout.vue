@@ -190,13 +190,13 @@
           </Button>
 
           <!-- Lonceng Notifikasi Interaktif -->
-          <div class="relative">
+          <div class="relative" ref="notifContainerRef">
             <Button
               variant="ghost"
               size="icon"
               class="relative h-9 w-9 rounded-xl border border-border text-foreground hover:bg-muted"
               title="Notifikasi Dokumen Pending TTE"
-              @click="toggleNotificationDropdown"
+              @click.stop="toggleNotificationDropdown"
             >
               <Bell class="w-4 h-4 text-foreground" />
               <Badge
@@ -262,16 +262,17 @@
           </div>
 
           <!-- =============================================================== -->
-          <!-- USER PROFILE & AVATAR PILL DROPDOWN                             -->
+          <!-- USER PROFILE & AVATAR DROPDOWN (AVATAR ONLY)                     -->
           <!-- =============================================================== -->
-          <div class="relative">
+          <div class="relative" ref="profileContainerRef">
             <Button
               variant="ghost"
-              class="h-9.5 pl-1.5 pr-2.5 py-1 rounded-xl border border-border hover:border-primary/40 hover:bg-muted/60 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-              @click="toggleProfileDropdown"
+              class="h-9 w-9 p-0 rounded-xl border border-border hover:border-primary/40 hover:bg-muted/60 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+              :title="`Profil: ${activeUser.nama || activeUser.username}`"
+              @click.stop="toggleProfileDropdown"
             >
               <!-- Avatar dengan Ring Status Hijau Aktif -->
-              <div class="relative">
+              <div class="relative flex items-center justify-center">
                 <Avatar size="sm" class="h-7 w-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs ring-1 ring-primary/30">
                   <AvatarFallback class="font-bold text-[11px] bg-gradient-to-tr from-cyan-500 to-emerald-500 text-slate-950">
                     {{ userInitials }}
@@ -279,21 +280,6 @@
                 </Avatar>
                 <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-card"></span>
               </div>
-
-              <!-- Nama dan NIP User (Desktop) -->
-              <div class="hidden md:flex flex-col text-left max-w-[130px] lg:max-w-[180px]">
-                <span class="text-xs font-bold text-foreground truncate leading-tight">
-                  {{ activeUser.nama || activeUser.username || 'Pengguna SIMRS' }}
-                </span>
-                <span class="text-[10px] text-muted-foreground truncate font-mono">
-                  {{ activeUser.nip ? `NIP: ${activeUser.nip}` : `@${activeUser.username || 'user'}` }}
-                </span>
-              </div>
-
-              <ChevronDown
-                class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200"
-                :class="{ 'rotate-180': showProfileDropdown }"
-              />
             </Button>
 
             <!-- User Profile Dropdown Card -->
@@ -368,17 +354,6 @@
               </div>
             </Card>
           </div>
-
-          <!-- Tombol Keluar Langsung (Logout) -->
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-9 w-9 rounded-xl border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-            title="Keluar / Ganti Akun"
-            @click="handleLogout"
-          >
-            <LogOut class="w-4 h-4" />
-          </Button>
         </div>
       </header>
 
@@ -480,7 +455,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi, notificationApi } from '@/services/api'
 import { Button } from '@/components/ui/button'
@@ -535,6 +510,17 @@ const activeUser = ref({
 
 const showProfileDropdown = ref(false)
 const showProfileModal = ref(false)
+const profileContainerRef = ref(null)
+const notifContainerRef = ref(null)
+
+const handleDocumentClick = (e) => {
+  if (profileContainerRef.value && !profileContainerRef.value.contains(e.target)) {
+    showProfileDropdown.value = false
+  }
+  if (notifContainerRef.value && !notifContainerRef.value.contains(e.target)) {
+    showNotifDropdown.value = false
+  }
+}
 
 const toggleProfileDropdown = () => {
   showProfileDropdown.value = !showProfileDropdown.value
@@ -666,11 +652,18 @@ onMounted(() => {
   initCurrentUser()
   loadNotifications()
 
+  // Listener untuk menutup dropdown saat klik di luar (Click-Outside Handler)
+  document.addEventListener('click', handleDocumentClick)
+
   // Listen event perubahan tab dari widget jika ada
   window.addEventListener('set-active-tab', (e) => {
     if (e.detail) {
       activeNav.value = e.detail
     }
   })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick)
 })
 </script>

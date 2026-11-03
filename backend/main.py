@@ -68,6 +68,12 @@ def on_startup():
     os.makedirs(os.path.join(settings.BASE_STORAGE_PATH, "temp"), exist_ok=True)
     init_db()
 
+@app.post("/test-ws-broadcast")
+def test_broadcast(event: str = "TEST_EVENT", message: str = "Halo dari SIMRS TTE"):
+    from app.Services.WebSocketService import dispatch_ws_event
+    dispatch_ws_event(event, noreg="TEST-001", document_id=999, extra={"message": message})
+    return {"status": "dispatched"}
+
 @app.get("/")
 def root():
     return {

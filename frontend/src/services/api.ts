@@ -16,7 +16,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      console.warn("Sesi kadaluarsa. Silakan login kembali.");
+      console.warn("Sesi kadaluarsa (401 Unauthorized). Membersihkan token dan mengarahkan ke login...");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      // Arahkan ke login jika saat ini tidak berada di halaman login
+      if (typeof window !== "undefined" && !window.location.hash.includes("/login")) {
+        window.location.hash = "#/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -44,6 +50,8 @@ export const documentApi = {
     api.get("/simrs/ranap/surat-kematian/status", { params: { noreg } }),
 
   list: (params: any) => api.get("/document", { params }),
+
+  getDashboardStats: () => api.get("/document/dashboard-stats"),
 
   getById: (id: number | string) => api.get(`/document/${id}`),
 

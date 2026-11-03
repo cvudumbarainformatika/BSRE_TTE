@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # JWT Security (Wajib dari .env)
     SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days (1 minggu) agar tidak mudah kedaluwarsa saat sesi kerja
 
     # ClamAV Antivirus
     CLAMAV_ENABLED: bool = os.getenv("CLAMAV_ENABLED", "true").lower() == "true"

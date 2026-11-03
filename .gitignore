@@ -18,9 +18,11 @@ backend/storage/app/qr_codes/**
 *.jpeg
 halaman_login_tte_bsre.html
 
-# Environment variables
+# Environment variables & Server Credentials
 .env
 *.env.local
+panduan-server.md
+panduan-server*.md
 
 # Node
 node_modules/

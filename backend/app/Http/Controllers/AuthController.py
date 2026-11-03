@@ -4,17 +4,19 @@ import io
 import base64
 import hashlib
 import bcrypt
+import secrets
 from typing import Optional
 from datetime import datetime, timezone
 from jose import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 from config.database import get_session
 from config.settings import settings
 from app.Models.User import User, UserRole
 from app.Http.Requests.AuthRequest import (
     LoginRequest, TokenResponse, RegisterUserRequest,
-    SsoLoginRequest, QrGenerateResponse, QrStatusResponse, QrApproveRequest, LoginQrSimrsRequest,
+    SsoLoginRequest, SsoTicketRequest, QrGenerateResponse, QrStatusResponse, QrApproveRequest, LoginQrSimrsRequest,
     QrGenerateCustomRequest
 )
 from app.Http.Middleware.AuthMiddleware import (
@@ -28,6 +30,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 # In-Memory Cache untuk QR Session (Bisa ditingkatkan ke Redis jika cluster)
 QR_SESSIONS = {}
 QR_SESSION_TTL = 180  # 3 menit
+
+# In-Memory Cache untuk SSO One-Time Tickets
+SSO_TICKETS = {}
 
 
 def _verify_simrs_credentials(password_input: str, simrs_pegawai: dict) -> bool:
@@ -262,40 +267,137 @@ def login_qr_simrs(req: LoginQrSimrsRequest, db: Session = Depends(get_session))
 
 
 # =====================================================================
-# 1. SSO INTEGRATION ENDPOINT (Seamless Login dari SIMRS Web / iFrame)
+# 1. SSO INTEGRATION ENDPOINTS (Seamless Login dari SIMRS Web / iFrame)
 # =====================================================================
+@router.post("/sso/ticket")
+def sso_generate_ticket(req: SsoTicketRequest, db: Session = Depends(get_session)):
+    """
+    Menghasilkan One-Time Ticket SSO untuk SIMRS backend (PHP / Laravel / Go).
+    Tiket ini hanya berlaku 1 kali pakai dan memiliki TTL singkat (default 300 detik).
+    """
+    identifier = req.nip or req.username
+    if not identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Parameter nip atau username diperlukan untuk membuat tiket SSO"
+        )
+
+    # Validasi bahwa pegawai ada di DB SIMRS / DB lokal
+    user = _get_or_create_user_from_identifier(identifier, db)
+
+    now = time.time()
+    ttl = req.expires_in_seconds or 300
+    ticket = f"tick_{secrets.token_hex(16)}"
+
+    SSO_TICKETS[ticket] = {
+        "identifier": user.nip or user.username,
+        "expires_at": now + ttl
+    }
+
+    # Bersihkan tiket kadaluarsa
+    expired_keys = [k for k, v in SSO_TICKETS.items() if v["expires_at"] < now]
+    for k in expired_keys:
+        SSO_TICKETS.pop(k, None)
+
+    return {
+        "ticket": ticket,
+        "expires_in_seconds": ttl,
+        "sso_url": f"http://localhost:3000/#/?sso_ticket={ticket}",
+        "user": {
+            "nama": user.nama,
+            "nip": user.nip,
+            "role": user.role.value if hasattr(user.role, 'value') else str(user.role)
+        }
+    }
+
+
+@router.get("/sso/redirect")
+def sso_redirect(
+    nip: Optional[str] = None,
+    username: Optional[str] = None,
+    ticket: Optional[str] = None,
+    db: Session = Depends(get_session)
+):
+    """
+    Endpoint 1-Klik Redirect dari SIMRS Web:
+    SIMRS cukup membuka:
+    GET /api/v1/auth/sso/redirect?nip=198304152011011003
+    Browser dokter otomatis di-redirect ke frontend TTE dalam kondisi sudah login!
+    """
+    identifier = None
+
+    if ticket:
+        ticket_data = SSO_TICKETS.pop(ticket, None)
+        if ticket_data and time.time() <= ticket_data["expires_at"]:
+            identifier = ticket_data["identifier"]
+        else:
+            raise HTTPException(status_code=400, detail="Tiket SSO tidak valid atau sudah kadaluarsa")
+
+    if not identifier:
+        identifier = nip or username
+
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Parameter SSO tidak lengkap (memerlukan nip, username, atau ticket)")
+
+    user = _get_or_create_user_from_identifier(identifier, db)
+    role_val = user.role.value if hasattr(user.role, 'value') else str(user.role)
+
+    token = create_access_token({
+        "sub": user.username,
+        "role": role_val,
+        "id": user.id,
+        "nama": user.nama,
+        "nip": user.nip,
+        "auth_provider": "SIMRS_SSO_REDIRECT"
+    })
+
+    # Redirect ke SPA frontend TTE membawa token
+    frontend_redirect_url = f"http://localhost:3000/#/?token={token}"
+    return RedirectResponse(url=frontend_redirect_url, status_code=status.HTTP_302_FOUND)
+
+
 @router.post("/sso-login", response_model=TokenResponse)
 def sso_login(req: SsoLoginRequest, db: Session = Depends(get_session)):
     """
     Endpoint autentikasi Single Sign-On (SSO) dari SIMRS:
-    - Menerima `sso_token` (JWT dari SIMRS) atau pasangan `nip` & `auth_key`.
+    - Menerima `sso_ticket` (one-time ticket), `sso_token` (JWT dari SIMRS), atau `nip` / `username`.
     - Mengonfirmasi keabsahan identitas pegawai di DB SIMRS.
     - Mengembalikan akses token E-DOC BSrE secara instan tanpa form login.
     """
     identifier = None
 
-    # Kasus A: Lewat JWT sso_token dari SIMRS
-    if req.sso_token:
+    # Kasus A: Lewat one-time sso_ticket
+    if req.sso_ticket:
+        now = time.time()
+        ticket_data = SSO_TICKETS.pop(req.sso_ticket, None)
+        if ticket_data and now <= ticket_data["expires_at"]:
+            identifier = ticket_data["identifier"]
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tiket SSO SIMRS tidak valid atau sudah kadaluarsa"
+            )
+
+    # Kasus B: Lewat JWT sso_token dari SIMRS
+    if not identifier and req.sso_token:
         try:
-            # Decode token SIMRS (bisa menggunakan secret yang sama atau verifikasi payload)
             payload = jwt.decode(req.sso_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
             identifier = payload.get("nip") or payload.get("username") or payload.get("sub")
         except Exception:
-            # Fallback jika token berupa token acak/simrs session, cek unverified payload
             try:
                 unverified = jwt.get_unverified_claims(req.sso_token)
                 identifier = unverified.get("nip") or unverified.get("username") or unverified.get("sub")
             except Exception:
-                identifier = req.sso_token  # Jika token langsung berupa NIP/kdpeg
+                identifier = req.sso_token
 
-    # Kasus B: Lewat query NIP / Username langsung (dari whitelist portal SIMRS)
+    # Kasus C: Lewat query NIP / Username langsung (dari portal SIMRS)
     if not identifier:
         identifier = req.nip or req.username
 
     if not identifier:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Parameter SSO tidak lengkap (memerlukan sso_token atau nip)"
+            detail="Parameter SSO tidak lengkap (memerlukan sso_ticket, sso_token, atau nip)"
         )
 
     user = _get_or_create_user_from_identifier(identifier, db)
