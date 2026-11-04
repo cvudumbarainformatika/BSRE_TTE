@@ -74,7 +74,19 @@ services:
     depends_on:
       - frontend
 
+  # Web File Manager (Visual Documents & Project File Explorer)
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: simrs_tte_filebrowser
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      - .:/srv
+      - filebrowser_data:/database
+
 volumes:
   postgres_data:
   npm_data:
   npm_letsencrypt:
+  filebrowser_data:

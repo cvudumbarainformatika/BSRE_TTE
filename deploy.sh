@@ -139,9 +139,11 @@ ENV_EOF
 mkdir -p backend/storage/app/documents backend/storage/app/qr_codes backend/storage/app/temp
 chmod -R 777 backend/storage
 
-# Buka Port 81 di UFW untuk Nginx Proxy Manager jika belum dibuka
+# Buka Port 81 (NPM), 8088 (FileBrowser), 9090 (Cockpit) di UFW jika belum dibuka
 if command -v ufw &> /dev/null; then
     echo "sasa0102sa" | sudo -S ufw allow 81/tcp comment 'Nginx Proxy Manager Admin UI' > /dev/null 2>&1 || true
+    echo "sasa0102sa" | sudo -S ufw allow 8088/tcp comment 'FileBrowser Web File Manager' > /dev/null 2>&1 || true
+    echo "sasa0102sa" | sudo -S ufw allow 9090/tcp comment 'Cockpit Web Admin & User Monitor' > /dev/null 2>&1 || true
 fi
 
 # Jalankan Container Docker Compose
@@ -189,6 +191,10 @@ echo -e " 🌐 Dashboard Frontend TTE : ${CYAN}http://${PROD_HOST}:3000${NC} (at
 echo -e " 🔌 API Docs (Swagger)     : ${CYAN}http://${PROD_HOST}:8005/docs${NC}"
 echo -e " 🛡️  Nginx Proxy Manager   : ${CYAN}http://${PROD_HOST}:81${NC} (SSL & Bridging Domain .go.id UI)"
 echo -e "    * Login Awal NPM       : ${YELLOW}admin@example.com${NC} / ${YELLOW}changeme${NC}"
+echo -e " 🖥️  Cockpit Server Admin  : ${CYAN}https://${PROD_HOST}:9090${NC} (Pantau Kesehatan Server & User)"
+echo -e "    * Login Cockpit        : User sistem Ubuntu (${YELLOW}sa${NC} / ${YELLOW}sasa0102sa${NC})"
+echo -e " 📂 FileBrowser (Files UI) : ${CYAN}http://${PROD_HOST}:8088${NC} (Web File Manager Visual)"
+echo -e "    * Login FileBrowser    : ${YELLOW}admin${NC} / ${YELLOW}AdminRsud2026!${NC}"
 echo -e " 🐳 Portainer Docker UI    : ${CYAN}https://${PROD_HOST}:9443${NC} atau ${CYAN}http://${PROD_HOST}:9000${NC}"
 echo -e " 🔒 Status Keamanan        : ${GREEN}UFW Firewall & Fail2Ban Aktif${NC}"
 echo -e "${GREEN}================================================================${NC}\n"
