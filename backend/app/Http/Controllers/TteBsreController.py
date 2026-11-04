@@ -222,7 +222,31 @@ def batch_sign_documents(
 
             success_list.append(doc.id)
         except Exception as e:
+            logger.error(f"Kegagalan proses TTE BSrE untuk dokumen {doc.id}: {e}")
             failed_list.append({"id": doc.id, "error": str(e)})
+
+            # Ketentuan Poin 9 Audit BSrE BSSN: Wajib menyimpan rekam log kegagalan proses tanda tangan
+            try:
+                audit_service.log(
+                    db=db,
+                    document_id=doc.id,
+                    user_id=current_user.id,
+                    username=effective_signer_name,
+                    user_role="Penandatangan TTE",
+                    action="SIGN_TTE_FAILED",
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent"),
+                    details={
+                        "error_message": str(e),
+                        "doc_title": doc.title,
+                        "kunjungan_id": doc.kunjungan_id,
+                        "target_nip": effective_signer_nip,
+                        "reason": "Kegagalan otorisasi passphrase atau kendala konektivitas ke Engine BSrE",
+                        "status": "FAILED_BSRE"
+                    }
+                )
+            except Exception as log_err:
+                logger.error(f"Gagal mencatat audit log SIGN_TTE_FAILED: {log_err}")
 
     db.commit()
 

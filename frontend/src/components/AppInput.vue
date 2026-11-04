@@ -12,7 +12,7 @@
 
       <Input
         :id="id"
-        v-bind="$attrs"
+        v-bind="computedAttrs"
         :type="type"
         :placeholder="placeholder"
         v-model="localValue"
@@ -34,9 +34,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
+const attrs = useAttrs()
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -46,6 +48,20 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   hint: { type: String, default: '' },
   error: { type: String, default: '' }
+})
+
+// Ketentuan Poin 4 Audit BSrE BSSN: Passphrase / password wajib bebas dari web cache browser
+const computedAttrs = computed(() => {
+  if (props.type === 'password') {
+    return {
+      autocomplete: 'new-password',
+      autocorrect: 'off',
+      autocapitalize: 'off',
+      spellcheck: 'false',
+      ...attrs
+    }
+  }
+  return attrs
 })
 
 const modelValue = defineModel({

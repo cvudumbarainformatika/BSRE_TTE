@@ -51,12 +51,30 @@ services:
     container_name: simrs_tte_frontend
     restart: unless-stopped
     ports:
-      - "80:80"
       - "3000:80"
     env_file:
       - .env
     depends_on:
       - backend
 
+  # Nginx Proxy Manager (Reverse Proxy, SSL Generator & Bridging Gateway untuk Domain .go.id)
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: simrs_tte_npm
+    restart: unless-stopped
+    ports:
+      - "80:80"      # Public HTTP
+      - "81:81"      # Web UI Admin Management Console
+      - "443:443"    # Public HTTPS (SSL)
+    environment:
+      DISABLE_IPV6: 'true'
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    depends_on:
+      - frontend
+
 volumes:
   postgres_data:
+  npm_data:
+  npm_letsencrypt:

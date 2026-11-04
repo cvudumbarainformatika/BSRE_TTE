@@ -122,7 +122,11 @@
       </div>
 
       <!-- BSrE Status Footer at Bottom Sidebar (Mode Normal vs Mode Mini Berlampu Kedip) -->
-      <div v-if="!isSidebarMini" class="p-4 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300">
+      <div v-if="!isSidebarMini" class="p-3.5 m-3 rounded-xl glass-panel border border-emerald-500/30 bg-emerald-500/10 transition-all duration-300">
+        <!-- Logo Resmi BSrE BSSN (Ketentuan Poin 1 Audit Integrasi BSrE) -->
+        <div class="mb-2.5 p-2 rounded-lg bg-white/95 dark:bg-white shadow-xs flex items-center justify-center">
+          <img src="/images/logo_bsre.png" alt="Balai Besar Sertifikasi Elektronik - BSSN" class="h-6 w-auto object-contain" />
+        </div>
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>

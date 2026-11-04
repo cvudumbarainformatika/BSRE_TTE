@@ -16,6 +16,8 @@ backend/storage/app/qr_codes/**
 *.png
 *.jpg
 *.jpeg
+!frontend/public/images/**
+!frontend/src/assets/**
 halaman_login_tte_bsre.html
 
 # Environment variables & Server Credentials

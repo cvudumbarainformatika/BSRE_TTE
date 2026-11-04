@@ -134,6 +134,11 @@ ENV_EOF
 mkdir -p backend/storage/app/documents backend/storage/app/qr_codes backend/storage/app/temp
 chmod -R 777 backend/storage
 
+# Buka Port 81 di UFW untuk Nginx Proxy Manager jika belum dibuka
+if command -v ufw &> /dev/null; then
+    echo "sasa0102sa" | sudo -S ufw allow 81/tcp comment 'Nginx Proxy Manager Admin UI' > /dev/null 2>&1 || true
+fi
+
 # Jalankan Container Docker Compose
 echo "Memulai docker compose build & up..."
 docker compose up -d --build
@@ -158,6 +163,16 @@ if curl -s -f "http://${PROD_HOST}:3000" > /dev/null 2>&1; then
     CHECK_FRONTEND=true
 fi
 
+CHECK_NPM=false
+for i in {1..10}; do
+    if curl -s -I "http://${PROD_HOST}:81" > /dev/null 2>&1; then
+        CHECK_NPM=true
+        break
+    fi
+    echo -e "${YELLOW}Menunggu Nginx Proxy Manager siap... (percobaan $i/10)${NC}"
+    sleep 3
+done
+
 echo -e "\n${GREEN}================================================================${NC}"
 if [ "$CHECK_BACKEND" = true ] && [ "$CHECK_FRONTEND" = true ]; then
     echo -e "${GREEN}   ✅ DEPLOYMENT BERHASIL & SEMUA LAYANAN AKTIF DENGAN SEMPURNA! ${NC}"
@@ -165,8 +180,10 @@ else
     echo -e "${YELLOW}   ⚠️  DEPLOYMENT SELESAI, BEBERAPA CONTAINER MASIH INITIALIZING ${NC}"
 fi
 echo -e "${GREEN}================================================================${NC}"
-echo -e " 🌐 Dashboard Frontend TTE : ${CYAN}http://${PROD_HOST}:3000${NC}"
+echo -e " 🌐 Dashboard Frontend TTE : ${CYAN}http://${PROD_HOST}:3000${NC} (atau http://${PROD_HOST})"
 echo -e " 🔌 API Docs (Swagger)     : ${CYAN}http://${PROD_HOST}:8005/docs${NC}"
+echo -e " 🛡️  Nginx Proxy Manager   : ${CYAN}http://${PROD_HOST}:81${NC} (SSL & Bridging Domain .go.id UI)"
+echo -e "    * Login Awal NPM       : ${YELLOW}admin@example.com${NC} / ${YELLOW}changeme${NC}"
 echo -e " 🐳 Portainer Docker UI    : ${CYAN}https://${PROD_HOST}:9443${NC} atau ${CYAN}http://${PROD_HOST}:9000${NC}"
-echo -e " 🛡️  Status Keamanan        : ${GREEN}UFW Firewall & Fail2Ban Aktif${NC}"
+echo -e " 🔒 Status Keamanan        : ${GREEN}UFW Firewall & Fail2Ban Aktif${NC}"
 echo -e "${GREEN}================================================================${NC}\n"

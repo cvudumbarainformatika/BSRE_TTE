@@ -19,20 +19,28 @@
       <!-- SISI KIRI: BRANDING & BSRE SYSTEM INFOGRAPHICS (5 Cols)             -->
       <!-- =================================================================== -->
       <div class="lg:col-span-5 p-8 lg:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border bg-gradient-to-b from-primary/10 via-card/50 to-transparent relative overflow-hidden">
-        <!-- Top Branding Header -->
+        <!-- Top Branding Header & Logo Resmi BSrE BSSN -->
         <div>
+          <!-- Logo Resmi BSrE (Ketentuan Poin 1 Audit BSrE BSSN) -->
+          <div class="mb-5 flex items-center justify-between">
+            <div class="px-3 py-1.5 rounded-xl bg-white/95 dark:bg-white shadow-xs border border-border inline-flex items-center">
+              <img src="/images/logo_bsre.png" alt="Balai Besar Sertifikasi Elektronik - BSSN" class="h-8 w-auto object-contain" />
+            </div>
+            <span class="text-[10px] font-mono tracking-widest text-primary uppercase font-bold px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              BSSN VERIFIED
+            </span>
+          </div>
+
           <div class="flex items-center space-x-3 mb-6">
             <!-- Floating Shield Icon -->
-            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-400 via-primary to-emerald-400 p-0.5 shadow-lg shadow-primary/25 animate-float">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-400 via-primary to-emerald-400 p-0.5 shadow-lg shadow-primary/25 animate-float shrink-0">
               <div class="w-full h-full rounded-[14px] flex items-center justify-center bg-card text-primary">
                 <ShieldCheck class="w-7 h-7" />
               </div>
             </div>
             <div>
-              <span class="text-[10px] font-mono tracking-widest text-primary uppercase font-bold px-2 py-0.5 rounded bg-primary/10 border border-primary/30">
-                BSSN VERIFIED TTE
-              </span>
-              <h1 class="text-xl font-extrabold tracking-wide flex items-center gap-1.5 mt-0.5 text-foreground">
+              <h1 class="text-xl font-extrabold tracking-wide flex items-center gap-1.5 text-foreground">
                 E-DOC <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">BSrE</span>
               </h1>
               <p class="text-[10px] text-muted-foreground font-medium tracking-tight">UOBK RSUD dr. Mohamad Saleh</p>
@@ -43,7 +51,7 @@
             Portal Keamanan & Otorisasi <span class="text-primary underline decoration-primary/50 underline-offset-4">Dokumen TTE</span>
           </h2>
           <p class="text-xs mt-3 leading-relaxed text-muted-foreground">
-            Sistem Terintegrasi Single Sign-On (SSO) SIMRS & Balai Sertifikasi Elektronik (BSrE - BSSN Republik Indonesia).
+            Sistem Terintegrasi Single Sign-On (SSO) SIMRS & Balai Besar Sertifikasi Elektronik (BSrE - BSSN Republik Indonesia).
           </p>
         </div>
 
@@ -252,6 +260,10 @@
               v-model="certForm.passphrase"
               :type="showCertPassphrase ? 'text' : 'password'"
               placeholder="Masukkan Passphrase File .P12"
+              autocomplete="new-password"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
               :error="formErrors.certPassphrase"
             >
               <template #prefix>

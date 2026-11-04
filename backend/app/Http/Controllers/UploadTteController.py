@@ -254,6 +254,30 @@ async def process_upload_and_sign(
         )
     except Exception as e:
         logger.error(f"Gagal melakukan stempel TTE: {e}")
+        # Ketentuan Poin 9 Audit BSrE BSSN: Rekam log kegagalan tanda tangan
+        try:
+            audit_service.log(
+                db=db,
+                document_id=doc_id,
+                user_id=1,
+                username=signer_name,
+                user_role="Penandatangan TTE",
+                action="SIGN_TTE_FAILED",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+                details={
+                    "error_message": str(e),
+                    "nomor_surat": nomor_surat,
+                    "perihal": perihal,
+                    "target_page": target_page,
+                    "reason": "Kegagalan otorisasi atau pemrosesan stempel TTE BSrE",
+                    "status": "FAILED_BSRE"
+                }
+            )
+            db.commit()
+        except Exception as log_err:
+            logger.error(f"Gagal mencatat audit log SIGN_TTE_FAILED di upload: {log_err}")
+
         raise HTTPException(status_code=400, detail=f"Gagal menandatangani dokumen: {str(e)}")
 
     file_size = os.path.getsize(output_pdf_path)
