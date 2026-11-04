@@ -128,6 +128,11 @@ HOSPITAL_EMAIL=rsudprob@probolinggokota.go.id
 # Storage & API URL Target
 BASE_STORAGE_PATH=/app/storage/app
 VITE_API_URL=http://${PROD_HOST}:8005/api/v1
+
+# Nginx Proxy Manager (NPM) Admin Credentials
+NPM_ADMIN_USER=harry
+NPM_ADMIN_EMAIL=admin@example.com
+NPM_ADMIN_PASS=changeme
 ENV_EOF
 
 # Pastikan hak akses folder storage
