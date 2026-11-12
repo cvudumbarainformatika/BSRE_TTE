@@ -91,8 +91,8 @@ SECRET_KEY=super-secret-bsre-tte-simrs-jwt-key-2026-very-secure
 # Database Microservice (PostgreSQL 16 + pgvector)
 POSTGRES_DB=simrs_tte
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-DATABASE_URL=postgresql://postgres:postgres@db:5432/simrs_tte
+POSTGRES_PASSWORD=RsudSalehTte2026!SecurePostgres
+DATABASE_URL=postgresql://postgres:RsudSalehTte2026!SecurePostgres@db:5432/simrs_tte
 
 # Database MySQL Riil SIMRS
 DB_HOST=192.168.11.1
@@ -137,7 +137,7 @@ ENV_EOF
 
 # Pastikan hak akses folder storage
 mkdir -p backend/storage/app/documents backend/storage/app/qr_codes backend/storage/app/temp
-chmod -R 777 backend/storage
+echo "sasa0102sa" | sudo -S chmod -R 777 backend/storage 2>/dev/null || chmod -R 777 backend/storage 2>/dev/null || true
 
 # Buka Port 81 (NPM), 8088 (FileBrowser), 9090 (Cockpit) di UFW jika belum dibuka
 if command -v ufw &> /dev/null; then
@@ -180,6 +180,36 @@ for i in {1..10}; do
     sleep 3
 done
 
+if [ "$CHECK_NPM" = true ]; then
+    # Pastikan Proxy Host default untuk Frontend TTE terdaftar di NPM
+    NPM_TOKEN=$(curl -s -X POST "http://${PROD_HOST}:81/api/tokens" -H "Content-Type: application/json" -d "{\"identity\":\"${NPM_ADMIN_EMAIL:-admin@example.com}\",\"secret\":\"${NPM_ADMIN_PASS:-changeme}\"}" | grep -o "\"token\":\"[^\"]*" | cut -d"\"" -f4 || true)
+    if [ -n "$NPM_TOKEN" ]; then
+        NPM_HOSTS=$(curl -s "http://${PROD_HOST}:81/api/nginx/proxy-hosts" -H "Authorization: Bearer $NPM_TOKEN" || true)
+        if ! echo "$NPM_HOSTS" | grep -q "${PROD_HOST}"; then
+            curl -s -X POST "http://${PROD_HOST}:81/api/nginx/proxy-hosts" \
+              -H "Authorization: Bearer $NPM_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"domain_names\": [\"${PROD_HOST}\", \"localhost\"],
+                \"forward_scheme\": \"http\",
+                \"forward_host\": \"frontend\",
+                \"forward_port\": 80,
+                \"access_list_id\": 0,
+                \"certificate_id\": 0,
+                \"ssl_forced\": 0,
+                \"caching_enabled\": 0,
+                \"block_exploits\": 1,
+                \"advanced_config\": \"\",
+                \"meta\": {\"letsencrypt_agree\": false, \"dns_challenge\": false},
+                \"allow_websocket_upgrade\": 1,
+                \"http2_support\": 0,
+                \"hsts_enabled\": 0,
+                \"hsts_subdomains\": 0
+              }" > /dev/null 2>&1 || true
+        fi
+    fi
+fi
+
 echo -e "\n${GREEN}================================================================${NC}"
 if [ "$CHECK_BACKEND" = true ] && [ "$CHECK_FRONTEND" = true ]; then
     echo -e "${GREEN}   ✅ DEPLOYMENT BERHASIL & SEMUA LAYANAN AKTIF DENGAN SEMPURNA! ${NC}"
@@ -195,6 +225,8 @@ echo -e " 🖥️  Cockpit Server Admin  : ${CYAN}https://${PROD_HOST}:9090${NC}
 echo -e "    * Login Cockpit        : User sistem Ubuntu (${YELLOW}sa${NC} / ${YELLOW}sasa0102sa${NC})"
 echo -e " 📂 FileBrowser (Files UI) : ${CYAN}http://${PROD_HOST}:8088${NC} (Web File Manager Visual)"
 echo -e "    * Login FileBrowser    : ${YELLOW}admin${NC} / ${YELLOW}AdminRsud2026!${NC}"
+echo -e " 🗄️  Adminer (Database UI) : ${CYAN}http://${PROD_HOST}:8089${NC} (PostgreSQL GUI Web)"
+echo -e "    * System: PostgreSQL, Server: db, Database: simrs_tte"
 echo -e " 🐳 Portainer Docker UI    : ${CYAN}https://${PROD_HOST}:9443${NC} atau ${CYAN}http://${PROD_HOST}:9000${NC}"
 echo -e " 🔒 Status Keamanan        : ${GREEN}UFW Firewall & Fail2Ban Aktif${NC}"
 echo -e "${GREEN}================================================================${NC}\n"

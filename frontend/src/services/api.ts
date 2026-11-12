@@ -20,8 +20,8 @@ api.interceptors.response.use(
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
       // Arahkan ke login jika saat ini tidak berada di halaman login
-      if (typeof window !== "undefined" && !window.location.hash.includes("/login")) {
-        window.location.hash = "#/login";
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
