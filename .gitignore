@@ -22,7 +22,10 @@ halaman_login_tte_bsre.html
 
 # Environment variables & Server Credentials
 .env
+*.env
 *.env.local
+backend/.env
+frontend/.env
 panduan-server.md
 panduan-server*.md
 
