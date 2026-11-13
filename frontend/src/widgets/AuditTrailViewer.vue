@@ -335,40 +335,46 @@
       v-model="showDetailModal"
       title="Detail Bukti Audit Trail Kriptografi"
       :description="`Rekam jejak resmi aktivitas TTE #${selectedLog?.id || ''} pada sistem BSrE BSSN`"
-      max-width="sm:max-w-lg"
+      max-width="sm:max-w-xl"
       cancel-text="Tutup"
     >
-      <div v-if="selectedLog" class="space-y-3 text-xs py-1">
-        <div class="p-3 rounded-xl bg-muted/40 border border-border space-y-1.5">
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">ID Rekam Log:</span>
-            <span class="font-mono font-bold text-foreground">#{{ selectedLog.id }}</span>
+      <div v-if="selectedLog" class="space-y-3 text-xs py-1 min-w-0 max-w-full overflow-hidden">
+        <!-- Box 1: Metadata Transaksi Kriptografi (Grid 2 Kolom Kokoh Anti-Overflow) -->
+        <div class="p-3.5 rounded-xl bg-muted/40 border border-border divide-y divide-border/40">
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">ID Rekam Log:</span>
+            <span class="col-span-7 font-mono font-bold text-foreground">#{{ selectedLog.id }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Waktu Kejadian:</span>
-            <span class="font-bold text-foreground">{{ formatFullDateTime(selectedLog.created_at) }} WIB</span>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Waktu Kejadian:</span>
+            <span class="col-span-7 font-bold text-foreground">{{ formatFullDateTime(selectedLog.created_at) }} WIB</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Nama User / Penandatangan:</span>
-            <span class="font-bold text-primary">{{ selectedLog.username }} ({{ formatRole(selectedLog.user_role) }})</span>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Nama User / Penandatangan:</span>
+            <span class="col-span-7 font-bold text-primary truncate" :title="selectedLog.username">
+              {{ selectedLog.username || 'System / Service' }}
+              <span class="font-normal text-muted-foreground ml-1">({{ formatRole(selectedLog.user_role) }})</span>
+            </span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Status Transaksi:</span>
-            <Badge
-              :variant="getStatusBadgeVariant(selectedLog.status)"
-              class="text-[10px] uppercase font-bold px-2 py-0.5"
-              :class="getStatusBadgeClass(selectedLog.status)"
-            >
-              {{ selectedLog.status }}
-            </Badge>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Status Transaksi:</span>
+            <div class="col-span-7 flex items-center">
+              <Badge
+                :variant="getStatusBadgeVariant(selectedLog.status)"
+                class="text-[10px] uppercase font-bold px-2 py-0.5"
+                :class="getStatusBadgeClass(selectedLog.status)"
+              >
+                {{ selectedLog.status }}
+              </Badge>
+            </div>
           </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Action Code:</span>
-            <span class="font-mono text-foreground">{{ selectedLog.action }}</span>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Action Code:</span>
+            <span class="col-span-7 font-mono font-semibold text-foreground">{{ selectedLog.action }}</span>
           </div>
-          <div v-if="selectedLog.ip_address" class="flex justify-between">
-            <span class="text-muted-foreground">Alamat IP:</span>
-            <span class="font-mono text-foreground">{{ selectedLog.ip_address }}</span>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Alamat IP:</span>
+            <span class="col-span-7 font-mono text-muted-foreground">{{ selectedLog.ip_address || '-' }}</span>
           </div>
         </div>
 
@@ -378,36 +384,43 @@
             <AlertTriangle class="w-3.5 h-3.5 text-destructive" />
             <span>Alasan Kegagalan TTE</span>
           </AlertTitle>
-          <AlertDescription class="text-[11px] mt-1 leading-relaxed">
+          <AlertDescription class="text-[11px] mt-1 leading-relaxed break-words whitespace-pre-wrap">
             {{ selectedLog.alasan_gagal }}
           </AlertDescription>
         </Alert>
 
-        <!-- Informasi Dokumen Terkait -->
-        <div class="p-3 rounded-xl bg-muted/40 border border-border space-y-1.5">
-          <div class="font-bold text-foreground">Dokumen Terkait:</div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Judul Dokumen:</span>
-            <span class="font-bold text-foreground text-right truncate max-w-[240px]">{{ selectedLog.document_title }}</span>
+        <!-- Box 2: Informasi Dokumen Terkait -->
+        <div class="p-3.5 rounded-xl bg-muted/40 border border-border divide-y divide-border/40">
+          <div class="font-bold text-foreground pb-1 flex items-center gap-1.5">
+            <FileText class="w-3.5 h-3.5 text-primary" />
+            <span>Informasi Dokumen Terkait:</span>
           </div>
-          <div v-if="selectedLog.nama_pasien" class="flex justify-between">
-            <span class="text-muted-foreground">Nama Pasien:</span>
-            <span class="font-semibold text-emerald-600 dark:text-emerald-400 text-right">{{ selectedLog.nama_pasien }}</span>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Judul Dokumen:</span>
+            <span class="col-span-7 font-bold text-foreground truncate" :title="selectedLog.document_title">
+              {{ selectedLog.document_title || `Dokumen #${selectedLog.document_id}` }}
+            </span>
           </div>
-          <div v-if="selectedLog.norm" class="flex justify-between">
-            <span class="text-muted-foreground">No. Rekam Medis:</span>
-            <span class="font-mono text-foreground">{{ selectedLog.norm }}</span>
+          <div v-if="selectedLog.nama_pasien" class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Nama Pasien:</span>
+            <span class="col-span-7 font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+              {{ selectedLog.nama_pasien }}
+            </span>
           </div>
-          <div v-if="selectedLog.nomor_surat" class="flex justify-between">
-            <span class="text-muted-foreground">Nomor Surat:</span>
-            <span class="font-mono text-foreground">{{ selectedLog.nomor_surat }}</span>
+          <div v-if="selectedLog.norm" class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">No. Rekam Medis:</span>
+            <span class="col-span-7 font-mono text-foreground">{{ selectedLog.norm }}</span>
+          </div>
+          <div class="grid grid-cols-12 gap-2 py-1 items-center">
+            <span class="col-span-5 text-muted-foreground font-medium">Nomor Surat:</span>
+            <span class="col-span-7 font-mono text-foreground">{{ selectedLog.nomor_surat || '-' }}</span>
           </div>
         </div>
 
-        <!-- Raw Details JSON -->
+        <!-- Box 3: Raw Details JSON Payload -->
         <div class="space-y-1">
           <span class="text-[11px] font-bold text-muted-foreground">Detail Data Mentah (Payload JSON):</span>
-          <pre class="p-2.5 rounded-lg bg-black/80 text-emerald-400 font-mono text-[10px] overflow-x-auto max-h-44 border border-border">{{ JSON.stringify(selectedLog.details, null, 2) }}</pre>
+          <pre class="p-3 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[10px] overflow-x-auto max-h-48 border border-border whitespace-pre-wrap break-all select-all">{{ JSON.stringify(selectedLog.details, null, 2) }}</pre>
         </div>
       </div>
     </AppDialog>

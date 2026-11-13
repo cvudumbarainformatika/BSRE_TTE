@@ -177,8 +177,8 @@ class BsreTteService:
                 c.save()
                 pkt.seek(0)
                 overlay_pdf = PdfReader(pkt)
-                page.merge_page(overlay_pdf.pages[0])
-                writer.add_page(page)
+                new_page = writer.add_page(page)
+                new_page.merge_page(overlay_pdf.pages[0])
 
             with open(output_pdf_path, "wb") as f_out:
                 writer.write(f_out)
@@ -259,8 +259,8 @@ class BsreTteService:
             c.save()
             pkt.seek(0)
             overlay_pdf = PdfReader(pkt)
-            page.merge_page(overlay_pdf.pages[0])
-            writer.add_page(page)
+            new_page = writer.add_page(page)
+            new_page.merge_page(overlay_pdf.pages[0])
 
         with open(output_pdf_path, "wb") as f_out:
             writer.write(f_out)
