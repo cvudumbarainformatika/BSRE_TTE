@@ -102,7 +102,7 @@ DB_USER=viewer
 DB_PASSWORD=sasa0102
 
 # Integrasi BSrE BSSN Production Gateway Kominfo
-BSRE_MOCK_MODE=true
+BSRE_MOCK_MODE=false
 BSRE_BASE_URL=http://103.146.34.29
 BSRE_API_URL=http://103.146.34.29/api
 BSRE_USERNAME=rsud_saleh
