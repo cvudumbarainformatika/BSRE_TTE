@@ -13,7 +13,7 @@ from app.Models.Document import Document
 from app.Models.User import User
 from app.Models.Notification import UserNotification
 from app.Models.DocumentAuditLog import TteSignature
-from app.Services.PdfGeneratorService import pdf_service
+from app.Services.PdfGeneratorService import pdf_service, to_indonesian_date
 from app.Services.BsreTteService import bsre_service
 from app.Services.SimrsMysqlReadService import simrs_mysql_service
 from app.Services.VectorSearchService import vector_service
@@ -334,7 +334,7 @@ def finalize_surat_kematian_ranap(
             "judul": "SURAT KETERANGAN KEMATIAN",
             "nosrtmeninggal": nomor_surat,
             "nomor_surat": nomor_surat,
-            "tgl_meninggal": req.tglkeluar or req.pasien.get("tglkeluar") or datetime.now().strftime("%d %B %Y"),
+            "tgl_meninggal": to_indonesian_date(req.tglkeluar or req.pasien.get("tglkeluar"), include_day=True),
             "jamMeninggal": req.jamMeninggal or "08:47",
             "jam_meninggal": req.jamMeninggal or "08:47",
             "diagnosa": req.diagnosa or req.pasien.get("sebabkematian") or "Cardiac arrest, unspecified",
@@ -640,7 +640,7 @@ def pulangkan_pasien_ranap(
             "judul": "SURAT KETERANGAN KEMATIAN",
             "nosrtmeninggal": nomor_surat,
             "nomor_surat": nomor_surat,
-            "tgl_meninggal": req.tglkeluar or datetime.now().strftime("%d %B %Y"),
+            "tgl_meninggal": to_indonesian_date(req.tglkeluar, include_day=True),
             "jamMeninggal": req.jamMeninggal or "00:00",
             "jam_meninggal": req.jamMeninggal or "00:00",
             "diagnosa": req.diagnosa or "-",

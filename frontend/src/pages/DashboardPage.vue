@@ -53,6 +53,17 @@
           >
             <FileText class="w-4 h-4 text-emerald-500" />
           </Button>
+
+          <!-- Icon Tombol Log Audit Trail -->
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-10 w-10 rounded-xl border border-border/80 bg-background/80 hover:bg-cyan-500/10 hover:border-cyan-500/40 text-foreground transition-all shadow-xs cursor-pointer"
+            title="Buka Log Audit Trail TTE Kominfo & BSrE"
+            @click="navigateToNav('audit')"
+          >
+            <History class="w-4 h-4 text-cyan-500" />
+          </Button>
         </div>
         <!-- Background Glow Decor -->
         <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -214,6 +225,13 @@
       />
     </div>
 
+    <!-- ===================================================================== -->
+    <!-- 5. TAMPILAN KHUSUS MENU: LOG AUDIT TRAIL (STANDAR KOMINFO & BSRE)     -->
+    <!-- ===================================================================== -->
+    <div v-else-if="currentNav === 'audit'" class="space-y-4">
+      <AuditTrailViewer />
+    </div>
+
     <!-- MODAL INLINE VIEWER MENGGUNAKAN KOMPONEN MODULAR AppDialog -->
     <AppDialog
       v-model="isViewerOpen"
@@ -253,13 +271,15 @@ import {
   Inbox,
   Archive,
   ArrowUpRight,
-  UploadCloud
+  UploadCloud,
+  History
 } from 'lucide-vue-next'
 
 import PendingTteInbox from '@/widgets/PendingTteInbox.vue'
 import DocumentList from '@/widgets/DocumentList.vue'
 import DocumentViewer from '@/widgets/DocumentViewer.vue'
 import UploadTteInteractive from '@/widgets/UploadTteInteractive.vue'
+import AuditTrailViewer from '@/widgets/AuditTrailViewer.vue'
 
 const props = defineProps({
   currentUser: {

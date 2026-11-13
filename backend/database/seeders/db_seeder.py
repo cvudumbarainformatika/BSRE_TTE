@@ -9,7 +9,7 @@ from app.Models.Document import Document
 from app.Models.DocumentAuditLog import TteSignature, DocumentTemplate
 from app.Models.Notification import UserNotification
 from app.Http.Middleware.AuthMiddleware import get_password_hash
-from app.Services.PdfGeneratorService import pdf_service
+from app.Services.PdfGeneratorService import pdf_service, to_indonesian_date
 from app.Services.BsreTteService import bsre_service
 from app.Services.VectorSearchService import vector_service
 
@@ -132,7 +132,7 @@ def seed_database():
                 simrs_payload = {
                     "kunjungan_id": noreg,
                     "nomor_surat": f"474.3/{noreg}/425.208/2026",
-                    "tgl_meninggal": (datetime.now() - timedelta(days=i % 5)).strftime("%A, %d %B %Y"),
+                    "tgl_meninggal": to_indonesian_date(datetime.now() - timedelta(days=i % 5), include_day=True),
                     "jam_meninggal": f"{8 + (i % 12):02d}:{15 + (i % 40):02d} WIB",
                     "tempat_meninggal": "Ruang Rawat Inap Flamboyan, RSUD dr. Moh. Saleh",
                     "pasien": {
@@ -190,7 +190,7 @@ def seed_database():
                 simrs_payload = {
                     "kunjungan_id": noreg,
                     "nomor_surat": f"474.3/{noreg}/425.208/2026",
-                    "tgl_meninggal": (datetime.now() - timedelta(days=j % 4)).strftime("%A, %d %B %Y"),
+                    "tgl_meninggal": to_indonesian_date(datetime.now() - timedelta(days=j % 4), include_day=True),
                     "jam_meninggal": f"{10 + (j % 10):02d}:{20 + (j % 30):02d} WIB",
                     "tempat_meninggal": "Ruang Rawat Inap Melati (Anak), RSUD dr. Moh. Saleh",
                     "pasien": {

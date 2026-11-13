@@ -167,8 +167,8 @@
                   @update:checked="toggleSelectAll"
                 />
               </TableHead>
-              <TableHead class="w-[18%] px-3 text-xs font-bold uppercase">Jenis Dokumen</TableHead>
-              <TableHead class="w-[34%] px-3 text-xs font-bold uppercase">Perihal & No. Dokumen</TableHead>
+              <TableHead class="w-[16%] px-3 text-xs font-bold uppercase">Jenis Dokumen</TableHead>
+              <TableHead class="w-[36%] px-3 text-xs font-bold uppercase">Nama Dokumen & Pasien</TableHead>
               <TableHead class="w-[23%] px-3 text-xs font-bold uppercase">Tujuan TTE (Penandatangan)</TableHead>
               <TableHead class="w-[10%] px-2 text-xs font-bold uppercase">Status</TableHead>
               <TableHead class="w-[10%] px-3 text-xs font-bold uppercase text-right">Aksi</TableHead>
@@ -228,23 +228,39 @@
                 </div>
               </TableCell>
 
-              <!-- Kolom 2: Perihal & No. Dokumen (Global + Ellipsis) -->
+              <!-- Kolom 2: Nama Dokumen & Informasi Pasien (Audit BSrE / Kominfo) -->
               <TableCell class="px-3 py-3 align-middle">
-                <div class="min-w-0 max-w-[340px] xl:max-w-none">
+                <div class="min-w-0 max-w-[360px] xl:max-w-none space-y-1">
+                  <!-- Nama Dokumen Jelas Berikon FileText -->
                   <div
-                    class="text-foreground font-bold text-xs truncate"
-                    :title="doc.title"
+                    class="flex items-center gap-1.5 text-foreground font-bold text-xs truncate"
+                    :title="getDocumentDisplayName(doc)"
                   >
-                    {{ doc.title }}
+                    <FileText class="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span class="truncate">{{ getDocumentDisplayName(doc) }}</span>
                   </div>
+
+                  <!-- Informasi Pasien: Nama & No. RM -->
+                  <div v-if="getPatientInfo(doc)" class="flex items-center gap-1.5 flex-wrap">
+                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      <User class="w-3 h-3 shrink-0" />
+                      <span class="truncate max-w-[200px]">{{ getPatientInfo(doc).nama }}</span>
+                      <span v-if="getPatientInfo(doc).norm" class="font-mono text-[10px] text-emerald-700 dark:text-emerald-300">({{ getPatientInfo(doc).norm }})</span>
+                    </span>
+                    <span v-if="getPatientInfo(doc).noreg" class="text-[10px] text-muted-foreground font-mono">
+                      {{ getPatientInfo(doc).noreg }}
+                    </span>
+                  </div>
+
+                  <!-- Nomor Dokumen & No. Surat -->
                   <div
-                    class="text-[11px] text-muted-foreground mt-0.5 truncate"
+                    class="text-[11px] text-muted-foreground truncate"
                     :title="getDocReferenceSummary(doc)"
                   >
                     {{ getDocReferenceSummary(doc) }}
                   </div>
                   <div
-                    class="text-[10px] text-muted-foreground/80 font-mono mt-0.5 truncate"
+                    class="text-[10px] text-muted-foreground/70 font-mono truncate"
                     :title="doc.filename"
                   >
                     {{ doc.filename }}
@@ -340,8 +356,26 @@
             </div>
             <span class="text-[10px] text-muted-foreground">{{ formatDateTime(doc.uploaded_at) }}</span>
           </div>
-          <div class="min-w-0">
-            <div class="font-bold text-xs text-foreground truncate">{{ doc.title }}</div>
+          <div class="min-w-0 space-y-1">
+            <!-- Nama Dokumen Jelas Berikon FileText -->
+            <div class="flex items-center gap-1.5 text-foreground font-bold text-xs truncate" :title="getDocumentDisplayName(doc)">
+              <FileText class="w-3.5 h-3.5 text-primary shrink-0" />
+              <span class="truncate">{{ getDocumentDisplayName(doc) }}</span>
+            </div>
+
+            <!-- Informasi Pasien: Nama & No. RM -->
+            <div v-if="getPatientInfo(doc)" class="flex items-center gap-1.5 flex-wrap">
+              <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                <User class="w-3 h-3 shrink-0" />
+                <span class="truncate max-w-[200px]">{{ getPatientInfo(doc).nama }}</span>
+                <span v-if="getPatientInfo(doc).norm" class="font-mono text-[10px] text-emerald-700 dark:text-emerald-300">({{ getPatientInfo(doc).norm }})</span>
+              </span>
+              <span v-if="getPatientInfo(doc).noreg" class="text-[10px] text-muted-foreground font-mono">
+                {{ getPatientInfo(doc).noreg }}
+              </span>
+            </div>
+
+            <!-- Nomor Dokumen & No. Surat -->
             <div class="text-[11px] text-muted-foreground truncate mt-0.5">{{ getDocReferenceSummary(doc) }}</div>
           </div>
           <div class="flex flex-nowrap items-center justify-between gap-2 pt-2 border-t border-border/50">
@@ -512,7 +546,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Bell, ShieldCheck, RefreshCw, UserCheck, Eye, Clock } from 'lucide-vue-next'
+import { Bell, ShieldCheck, RefreshCw, UserCheck, Eye, Clock, User, FileText } from 'lucide-vue-next'
 
 const emit = defineEmits(['preview-doc', 'document-signed'])
 
@@ -715,6 +749,49 @@ const formatType = (type) => {
     general: 'Dokumen Umum'
   }
   return map[type] || type
+}
+
+const getDocumentDisplayName = (doc) => {
+  if (!doc) return '-'
+  if (doc.document_type === 'surat_kematian') return 'Surat Keterangan Kematian'
+  if (doc.document_type === 'resume_medis') return 'Resume Medis Rawat Inap'
+  if (doc.document_type === 'konsul_spesialis') return 'Lembar Konsultasi Spesialis'
+  if (doc.document_type === 'laporan_operasi') return 'Laporan Operasi Bedah'
+  if (doc.document_type === 'hasil_lab') return 'Hasil Pemeriksaan Laboratorium'
+  if (doc.document_type === 'radiologi') return 'Hasil Pemeriksaan Radiologi'
+  return doc.title || 'Dokumen Elektronik'
+}
+
+const getPatientInfo = (doc) => {
+  if (!doc) return null
+  let nama = null
+  let norm = null
+  let noreg = null
+
+  if (doc.metadata_json) {
+    try {
+      const meta = typeof doc.metadata_json === 'string' ? JSON.parse(doc.metadata_json) : doc.metadata_json
+      nama = meta.pasien?.nama_panggil || meta.pasien?.nama || meta.nama_pasien || null
+      norm = meta.norm || meta.pasien?.norm || null
+      noreg = meta.noreg || null
+    } catch (e) {}
+  }
+
+  // Fallback nama pasien dari title misalnya: "Surat Keterangan Kematian - Tn. X"
+  if (!nama && doc.title && doc.title.includes(' - ')) {
+    const parts = doc.title.split(' - ')
+    if (parts.length >= 2) {
+      nama = parts.slice(1).join(' - ').trim()
+    }
+  }
+
+  if (!nama && !norm) return null
+
+  return {
+    nama: nama || 'Pasien',
+    norm: norm ? `RM: ${norm}` : null,
+    noreg: noreg ? `Reg: ${noreg}` : null
+  }
 }
 
 const getDocVersion = (doc) => {

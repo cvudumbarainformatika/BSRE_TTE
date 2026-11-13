@@ -481,7 +481,8 @@ import {
   LogOut,
   User,
   ChevronDown,
-  CheckCircle2
+  CheckCircle2,
+  History
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -490,7 +491,8 @@ const navMenuItems = [
   { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
   { id: 'inbox', label: 'Inbox TTE', icon: Inbox },
   { id: 'dokumen', label: 'Dokumen', icon: FileText },
-  { id: 'upload', label: 'Upload & TTE PDF', icon: UploadCloud }
+  { id: 'upload', label: 'Upload & TTE PDF', icon: UploadCloud },
+  { id: 'audit', label: 'Log Audit Trail', icon: History }
 ]
 
 const activeNav = ref('dashboard') // Menu pertama yang aktif adalah dashboard!

@@ -17,7 +17,10 @@
         :type="computedType"
         :placeholder="placeholder"
         :style="computedStyle"
+        :readonly="isSecret && isInputReadonly"
         v-model="localValue"
+        @focus="handleFocus"
+        @pointerdown="handleFocus"
         :class="[
           'bg-background text-foreground font-medium placeholder:font-normal placeholder:text-muted-foreground/50',
           $attrs.class,
@@ -75,19 +78,26 @@ const isSecret = computed(() => {
 })
 
 const isMasked = ref(true)
+const isInputReadonly = ref(true)
+
+const handleFocus = () => {
+  if (isSecret.value) {
+    isInputReadonly.value = false
+  }
+}
 
 // Sanitasi id & name agar tidak mengandung kata kunci 'password' / 'pass'
 // Ini mencegah heuristik browser password manager untuk mendeteksi field ini
 const computedId = computed(() => {
   if (isSecret.value) {
-    return props.id.replace(/password|passphrase/gi, 'auth_pin')
+    return props.id.replace(/password|passphrase/gi, 'auth_code')
   }
   return props.id
 })
 
 const computedName = computed(() => {
   if (isSecret.value) {
-    return `sec_${computedId.value}`
+    return `code_${computedId.value}_otp`
   }
   return props.id
 })
@@ -115,7 +125,7 @@ const computedStyle = computed(() => {
 const computedAttrs = computed(() => {
   if (isSecret.value) {
     return {
-      autocomplete: 'off',
+      autocomplete: 'new-password',
       autocorrect: 'off',
       autocapitalize: 'off',
       spellcheck: 'false',

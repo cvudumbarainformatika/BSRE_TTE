@@ -1,7 +1,8 @@
 import os
 import io
+import re
 import qrcode
-from datetime import datetime
+from datetime import datetime, date
 from PIL import Image as PILImage
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -11,6 +12,69 @@ from reportlab.platypus import (
 )
 from reportlab.lib.units import cm, mm
 from config.settings import settings
+
+
+BULAN_ID = {
+    1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+    5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+    9: "September", 10: "Oktober", 11: "November", 12: "Desember"
+}
+
+HARI_ID = {
+    0: "Senin", 1: "Selasa", 2: "Rabu", 3: "Kamis",
+    4: "Jumat", 5: "Sabtu", 6: "Minggu"
+}
+
+EN_TO_ID_WORDS = {
+    "Monday": "Senin", "Tuesday": "Selasa", "Wednesday": "Rabu",
+    "Thursday": "Kamis", "Friday": "Jumat", "Saturday": "Sabtu", "Sunday": "Minggu",
+    "January": "Januari", "February": "Februari", "March": "Maret", "April": "April",
+    "May": "Mei", "June": "Juni", "July": "Juli", "August": "Agustus",
+    "September": "September", "October": "Oktober", "November": "November", "December": "Desember"
+}
+
+
+def to_indonesian_date(val, include_day=False) -> str:
+    """Mengubah format tanggal menjadi Bahasa Indonesia resmi (Audit Kominfo / BSrE)"""
+    if not val:
+        now = datetime.now()
+        day_str = f"{HARI_ID[now.weekday()]}, " if include_day else ""
+        return f"{day_str}{now.day} {BULAN_ID[now.month]} {now.year}"
+
+    if isinstance(val, (datetime, date)):
+        day_str = f"{HARI_ID[val.weekday()]}, " if include_day else ""
+        return f"{day_str}{val.day} {BULAN_ID[val.month]} {val.year}"
+
+    val_str = str(val).strip()
+
+    # Cek format ISO YYYY-MM-DD
+    match_iso = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", val_str)
+    if match_iso:
+        try:
+            y, m, d = int(match_iso.group(1)), int(match_iso.group(2)), int(match_iso.group(3))
+            dt = datetime(y, m, d)
+            day_str = f"{HARI_ID[dt.weekday()]}, " if include_day else ""
+            return f"{day_str}{d} {BULAN_ID.get(m, str(m))} {y}"
+        except Exception:
+            pass
+
+    # Cek format DD-MM-YYYY
+    match_dmy = re.match(r"^(\d{1,2})-(\d{1,2})-(\d{4})", val_str)
+    if match_dmy:
+        try:
+            d, m, y = int(match_dmy.group(1)), int(match_dmy.group(2)), int(match_dmy.group(3))
+            dt = datetime(y, m, d)
+            day_str = f"{HARI_ID[dt.weekday()]}, " if include_day else ""
+            return f"{day_str}{d} {BULAN_ID.get(m, str(m))} {y}"
+        except Exception:
+            pass
+
+    # Ganti kata-kata nama hari dan bulan bahasa Inggris jika sudah terlanjur berformat string
+    res = val_str
+    for en_word, id_word in EN_TO_ID_WORDS.items():
+        res = re.sub(rf"\b{en_word}\b", id_word, res, flags=re.IGNORECASE)
+
+    return res
 
 
 class PdfGeneratorService:
@@ -244,7 +308,9 @@ class PdfGeneratorService:
         story.append(Spacer(1, 5 * mm))
 
         # 5. WAKTU & PENYEBAB KEMATIAN
-        tgl_meninggal = data.get("tgl_meninggal") or pasien.get("tglkeluar") or datetime.now().strftime("%d %B %Y")
+        tgl_meninggal_raw = data.get("tgl_meninggal") or pasien.get("tglkeluar")
+        tgl_meninggal = to_indonesian_date(tgl_meninggal_raw, include_day=True)
+        tgl_ttd = to_indonesian_date(tgl_meninggal_raw, include_day=False)
         jam_meninggal = data.get("jam_meninggal") or data.get("jamMeninggal") or "08:47"
         jam_clean = jam_meninggal.replace("WIB", "").strip()
         diagnosa_penyebab = (
@@ -285,7 +351,7 @@ class PdfGeneratorService:
             ]
 
         ttd_rows = [
-            [Paragraph(f"Probolinggo, Tgl {tgl_meninggal}", ttd_center_style)],
+            [Paragraph(f"Probolinggo, {tgl_ttd}", ttd_center_style)],
             [Paragraph("Mengetahui", ttd_center_style)],
             [Paragraph("Dokter,", ttd_center_style)],
             *signature_middle_rows,

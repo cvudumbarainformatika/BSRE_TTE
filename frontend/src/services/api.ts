@@ -85,6 +85,13 @@ export const documentApi = {
   getAuditTrail: (id: number | string) => api.get(`/audit/document/${id}`),
 };
 
+export const auditApi = {
+  getRecent: (limit = 50) => api.get("/audit/recent", { params: { limit } }),
+  getDocumentAudit: (documentId: number | string) => api.get(`/audit/document/${documentId}`),
+  getFullAuditTrail: (params?: { limit?: number; search?: string; status?: string }) =>
+    api.get("/audit/trail", { params }),
+};
+
 export const notificationApi = {
   getMyNotifications: () => api.get("/notifications/my"),
   getUnreadCount: () => api.get("/notifications/unread-count"),
