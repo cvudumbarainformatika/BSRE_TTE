@@ -101,12 +101,12 @@ DB_NAME=rs
 DB_USER=viewer
 DB_PASSWORD=sasa0102
 
-# Integrasi BSrE BSSN
+# Integrasi BSrE BSSN Production Gateway Kominfo
 BSRE_MOCK_MODE=true
-BSRE_BASE_URL=https://esign-sandbox.bssn.go.id
-BSRE_API_URL=https://esign-sandbox.bssn.go.id/api
-BSRE_USERNAME=esign
-BSRE_PASSWORD=qwerty
+BSRE_BASE_URL=http://103.146.34.29
+BSRE_API_URL=http://103.146.34.29/api
+BSRE_USERNAME=rsud_saleh
+BSRE_PASSWORD=7kuzBaIRyX1Ei5
 BSRE_API_KEY=sandbox-bsre-api-key
 BSRE_TIMEOUT_SECONDS=15
 BSRE_DEV_NIK=0803202100007062
