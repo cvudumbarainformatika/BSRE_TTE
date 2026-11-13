@@ -417,10 +417,10 @@
         </Alert>
 
         <AppInput
-          id="inbox-passphrase-input"
+          id="inbox-auth-code"
           label="Passphrase / PIN Pengaman BSrE BSSN *"
           v-model="passphrase"
-          type="password"
+          type="passphrase"
           placeholder="Masukkan Passphrase BSrE Anda..."
           hint="Passphrase dikirim secara terenkripsi ke Engine BSrE dan tidak disimpan di database."
           :error="errorMsg"
@@ -469,11 +469,11 @@
         <!-- Input Passphrase BSrE -->
         <div class="space-y-1">
           <AppInput
-            id="batch-passphrase-input"
+            id="batch-auth-code"
             label="Passphrase / PIN Pengaman BSrE BSSN *"
             v-model="batchPassphrase"
-            type="password"
-            placeholder="Ketik Passphrase Anda (contoh: Bsre2026.#!)"
+            type="passphrase"
+            placeholder="Ketik Passphrase BSrE Anda..."
             hint="Otorisasi 1 kali untuk seluruh dokumen yang dipilih."
             :error="batchErrorMsg"
             @keyup.enter="executeBatchSign"

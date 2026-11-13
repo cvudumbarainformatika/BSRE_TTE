@@ -200,11 +200,11 @@
             <!-- Passphrase Input -->
             <div class="space-y-1">
               <AppInput
-                id="upload-passphrase"
-                type="password"
-                label="Passphrase Sertifikat BSrE (P12)"
+                id="upload-auth-code"
+                type="passphrase"
+                label="Passphrase Sertifikat Elektronik BSrE"
                 v-model="form.passphrase"
-                placeholder="Ketik Passphrase Anda (contoh: Bsre2026.#!)"
+                placeholder="Ketik Passphrase Sertifikat BSrE Anda..."
                 hint="Wajib diisi untuk otorisasi kriptografi penandatanganan resmi BSrE."
                 :error="formErrors.passphrase"
               />

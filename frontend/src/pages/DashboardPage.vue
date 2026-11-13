@@ -115,11 +115,11 @@
           </CardContent>
         </Card>
 
-        <!-- Card 4: Sertifikat Digital P12 -->
+        <!-- Card 4: Sertifikat Elektronik BSrE -->
         <Card class="glass-panel hover:border-blue-500/40 transition-all border-border shadow-xs">
           <CardContent class="p-5">
             <div class="flex items-center justify-between text-muted-foreground">
-              <span class="text-xs font-medium uppercase tracking-wider">Sertifikat Digital P12</span>
+              <span class="text-xs font-medium uppercase tracking-wider">Sertifikat Elektronik BSrE</span>
               <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
                 <Key class="w-4 h-4" />
               </div>
