@@ -53,9 +53,9 @@ else
     SSHPASS_BIN="sshpass"
 fi
 
-# 2. Build Frontend untuk Production dengan API Server Target
+# 2. Build Frontend untuk Production dengan Relative API URL (Universal Staging Domain & IP)
 echo -e "\n${CYAN}[1/4] Membangun Frontend Quasar Production...${NC}"
-export VITE_API_URL="http://${PROD_HOST}:8005/api/v1"
+export VITE_API_URL="/api/v1"
 npm --prefix frontend run build
 
 # 3. Sinkronisasi File Proyek ke Server via Rsync
@@ -127,7 +127,7 @@ HOSPITAL_EMAIL=rsudprob@probolinggokota.go.id
 
 # Storage & API URL Target
 BASE_STORAGE_PATH=/app/storage/app
-VITE_API_URL=http://${PROD_HOST}:8005/api/v1
+VITE_API_URL=/api/v1
 
 # Nginx Proxy Manager (NPM) Admin Credentials
 NPM_ADMIN_USER=harry
