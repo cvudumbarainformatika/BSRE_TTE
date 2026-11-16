@@ -143,7 +143,8 @@ async def process_upload_and_sign(
     y_percent: float = Form(80.0),      # Posisi Y persentase dari atas (0 - 100)
     width_percent: float = Form(12.0),  # Lebar QR Code persentase terhadap lebar halaman
     height_percent: float = Form(12.0), # Tinggi QR Code (disamakan dengan lebar agar 1:1 persegi)
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Eksekusi pembubuhan stempel TTE BSrE interaktif pada koordinat yang ditentukan oleh user,
@@ -169,16 +170,27 @@ async def process_upload_and_sign(
     if not passphrase or len(passphrase.strip()) < 3:
         raise HTTPException(status_code=400, detail="Otorisasi BSrE Gagal: Passphrase tidak boleh kosong.")
 
-    # Tentukan penandatangan default (misal Dr. Hendra Wijaya / Dokter akun aktif)
-    signer_name = "Dr. Hendra Wijaya"
-    signer_nip = "198203102005011002"
-    signer_nik = settings.BSRE_DEV_NIK if settings.BSRE_MOCK_MODE else "3508152612570002"
+    # Ambil data identitas asli penandatangan dari akun aktif yang sedang login
+    signer_name = current_user.nama or current_user.username
+    signer_nip = current_user.nip or current_user.nik or "-"
+    signer_nik = (current_user.nik or current_user.nip or "").strip()
+    user_role_str = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
 
-    if settings.BSRE_MOCK_MODE and passphrase.strip() != settings.BSRE_DEV_PASSPHRASE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Otorisasi BSrE Gagal: Passphrase BSrE yang Anda masukkan salah untuk penandatangan {signer_name}."
-        )
+    if not settings.BSRE_MOCK_MODE:
+        if not signer_nik or len(signer_nik) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Otorisasi BSrE Gagal: NIK untuk penandatangan '{signer_name}' belum terdaftar di profil akun E-RM Anda. NIK diperlukan untuk otorisasi BSrE BSSN."
+            )
+    else:
+        if not signer_nik:
+            signer_nik = settings.BSRE_DEV_NIK
+
+        if passphrase.strip() != settings.BSRE_DEV_PASSPHRASE and len(passphrase.strip()) < 3:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Otorisasi BSrE Gagal: Passphrase BSrE yang Anda masukkan salah untuk penandatangan {signer_name}."
+            )
 
     # Baca dimensi halaman PDF target
     reader = pypdf.PdfReader(input_pdf_path)
@@ -237,21 +249,40 @@ async def process_upload_and_sign(
 
     # Pembubuhan Stempel Visual dan TTE BSrE
     try:
-        sign_res = bsre_service.stamp_custom_coordinate(
-            input_pdf_path=input_pdf_path,
-            output_pdf_path=output_pdf_path,
-            signer_name=signer_name,
-            signer_nip=signer_nip,
-            signer_nik=signer_nik,
-            doc_id=doc_id,
-            target_page=target_page,
-            x_point=stamp_x,
-            y_point=stamp_y,
-            width_point=stamp_w,
-            height_point=stamp_h,
-            stamp_type=tipe_stempel,
-            metadata_payload=content_payload
-        )
+        if not settings.BSRE_MOCK_MODE:
+            # Mode Live Production ke Engine Esign Kominfo / BSrE BSSN
+            sign_res = bsre_service.sign_document(
+                input_pdf_path=input_pdf_path,
+                output_pdf_path=output_pdf_path,
+                signer_name=signer_name,
+                signer_nik=signer_nik,
+                signer_nip=signer_nip,
+                doc_id=doc_id,
+                passphrase=passphrase.strip(),
+                metadata_payload=content_payload,
+                page=target_page,
+                x_axis=int(stamp_x),
+                y_axis=int(stamp_y),
+                width=int(stamp_w),
+                height=int(stamp_h)
+            )
+        else:
+            # Mode Simulasi / Mock Dev
+            sign_res = bsre_service.stamp_custom_coordinate(
+                input_pdf_path=input_pdf_path,
+                output_pdf_path=output_pdf_path,
+                signer_name=signer_name,
+                signer_nip=signer_nip,
+                signer_nik=signer_nik,
+                doc_id=doc_id,
+                target_page=target_page,
+                x_point=stamp_x,
+                y_point=stamp_y,
+                width_point=stamp_w,
+                height_point=stamp_h,
+                stamp_type=tipe_stempel,
+                metadata_payload=content_payload
+            )
     except Exception as e:
         logger.error(f"Gagal melakukan stempel TTE: {e}")
         # Ketentuan Poin 9 Audit BSrE BSSN: Rekam log kegagalan tanda tangan
@@ -259,9 +290,9 @@ async def process_upload_and_sign(
             audit_service.log(
                 db=db,
                 document_id=doc_id,
-                user_id=1,
+                user_id=current_user.id,
                 username=signer_name,
-                user_role="Penandatangan TTE",
+                user_role=user_role_str,
                 action="SIGN_TTE_FAILED",
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent"),
@@ -293,9 +324,9 @@ async def process_upload_and_sign(
         filename=output_pdf_filename,
         storage_path=output_pdf_path,
         original_path=input_pdf_path,
-        uploaded_by=1,
+        uploaded_by=current_user.id,
         uploaded_at=datetime.now(timezone.utc),
-        approved_by=1,
+        approved_by=current_user.id,
         approved_at=datetime.now(timezone.utc),
         status="signed",
         description=f"No. Dokumen: {nomor_surat} • Penandatangan: {signer_name}",
@@ -318,9 +349,9 @@ async def process_upload_and_sign(
         bsre_request_id=sign_res.get("bsre_id"),
         signer_nip=signer_nip,
         signer_name=signer_name,
-        signer_role="pejabat",
+        signer_role=user_role_str,
         signed_at=doc_record.tte_signed_at,
-        certificate_issuer="Balai Sertifikasi Elektronik (BSrE) - BSSN RI",
+        certificate_issuer=sign_res.get("certificate_issuer", "Balai Sertifikasi Elektronik (BSrE) - BSSN RI"),
         certificate_serial=sign_res.get("certificate_serial", f"BSSN-{uuid.uuid4().hex[:8].upper()}"),
         signature_hash=doc_hash,
         qr_verify_url=sign_res.get("verify_url"),
@@ -334,9 +365,9 @@ async def process_upload_and_sign(
     audit_service.log(
         db=db,
         document_id=doc_id,
-        user_id=1,
+        user_id=current_user.id,
         username=signer_name,
-        user_role="Penandatangan TTE",
+        user_role=user_role_str,
         action="SIGN_TTE_CUSTOM_UPLOAD",
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),

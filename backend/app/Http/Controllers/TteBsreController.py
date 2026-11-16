@@ -347,8 +347,8 @@ def verify_document_bsre(
 
     is_valid = bool(verification.get("is_authentic", False))
 
-    signer_name = doc.tte_signer_name or (sig_record.signer_name if sig_record else "Dr. Hendra Wijaya")
-    signer_nip = doc.tte_signer_nip or (sig_record.signer_nip if sig_record else "198203102005011002")
+    signer_name = doc.tte_signer_name or (sig_record.signer_name if sig_record else (doc.target_signer_name or "Pejabat Penandatangan"))
+    signer_nip = doc.tte_signer_nip or (sig_record.signer_nip if sig_record else (doc.target_signer_nip or "-"))
     signed_at = doc.tte_signed_at or (sig_record.signed_at if sig_record else None)
     issuer = sig_record.certificate_issuer if sig_record else "Balai Sertifikasi Elektronik (BSrE) - BSSN RI"
 
