@@ -9,6 +9,14 @@ class UserRole(str, Enum):
     PPA = "ppa"
     ADMIN = "admin"
 
+def is_programmer_user(user: Optional["User"]) -> bool:
+    """Mengecek apakah akun user memiliki hak akses programmer (melihat seluruh inbox & arsip global)"""
+    if not user:
+        return False
+    u = (user.username or "").lower().strip()
+    n = (user.nama or "").lower().strip()
+    return u in ["sa", "programmer"] or "programmer" in n or "programmer" in u
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
@@ -23,3 +31,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def is_programmer(self) -> bool:
+        return is_programmer_user(self)

@@ -5,7 +5,7 @@ import aiofiles
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, status
 from fastapi.responses import FileResponse
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, or_
 from typing import Optional
 
 from config.database import get_session
@@ -242,7 +242,8 @@ def list_documents(
         tte_status=tte_status,
         search=search,
         limit=per_page,
-        offset=offset
+        offset=offset,
+        filter_user=current_user
     )
 
     return {
@@ -261,14 +262,44 @@ def get_dashboard_stats(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Statistik riil dokumen dari database PostgreSQL
+    Statistik riil dokumen dari database PostgreSQL.
+    Akun programmer melihat statistik seluruh RSUD, sedangkan akun non-programmer
+    melihat statistik dokumen milik dirinya sendiri.
     """
-    total_dokumen = db.exec(select(func.count(Document.id))).one() or 0
-    verifikasi_sah = db.exec(
-        select(func.count(Document.id)).where(Document.tte_status == "SIGNED_BSRE")
+    base_query = select(Document)
+    if not current_user.is_programmer:
+        u_nip = (current_user.nip or "").strip()
+        u_nik = (current_user.nik or "").strip()
+        u_nama = (current_user.nama or "").strip().lower()
+
+        owner_conds = [
+            Document.uploaded_by == current_user.id,
+            Document.approved_by == current_user.id
+        ]
+        if u_nip:
+            owner_conds.append(Document.target_signer_nip == u_nip)
+            owner_conds.append(Document.tte_signer_nip == u_nip)
+        if u_nik:
+            owner_conds.append(Document.target_signer_nip == u_nik)
+            owner_conds.append(Document.tte_signer_nip == u_nik)
+        if u_nama:
+            owner_conds.append(func.lower(Document.target_signer_name) == u_nama)
+            owner_conds.append(func.lower(Document.tte_signer_name) == u_nama)
+
+        base_query = base_query.where(or_(*owner_conds))
+
+    total_dokumen = db.exec(
+        select(func.count(Document.id)).select_from(base_query.subquery())
     ).one() or 0
+
+    verifikasi_sah = db.exec(
+        select(func.count(Document.id))
+        .select_from(base_query.where(Document.tte_status == "SIGNED_BSRE").subquery())
+    ).one() or 0
+
     pending_tte = db.exec(
-        select(func.count(Document.id)).where(Document.tte_status.in_(["UNSIGNED", "PENDING"]))
+        select(func.count(Document.id))
+        .select_from(base_query.where(Document.tte_status.in_(["UNSIGNED", "PENDING"])).subquery())
     ).one() or 0
 
     persentase_sah = round((verifikasi_sah / total_dokumen * 100), 1) if total_dokumen > 0 else 100.0

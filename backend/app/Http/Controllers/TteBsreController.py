@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_, func
 from typing import Optional
 from collections import defaultdict
 
@@ -44,11 +44,32 @@ def get_pending_my_documents(
         except Exception as e:
             logger.warning(f"Auto-sync MySQL SIMRS dilewati: {e}")
 
-    all_pending = db.exec(
-        select(Document)
-        .where(Document.tte_status != "SIGNED_BSRE")
-        .order_by(Document.uploaded_at.desc())
-    ).all()
+    query = select(Document).where(Document.tte_status != "SIGNED_BSRE")
+
+    # Pembatasan Hak Akses Inbox:
+    # Akun Programmer melihat semua inbox; Akun lainnya HANYA melihat inbox miliknya
+    if not current_user.is_programmer:
+        user_nip = (current_user.nip or "").strip()
+        user_nik = (current_user.nik or "").strip()
+        user_nama = (current_user.nama or "").strip().lower()
+
+        owner_conditions = [
+            Document.uploaded_by == current_user.id,
+            Document.approved_by == current_user.id
+        ]
+        if user_nip:
+            owner_conditions.append(Document.target_signer_nip == user_nip)
+            owner_conditions.append(Document.tte_signer_nip == user_nip)
+        if user_nik:
+            owner_conditions.append(Document.target_signer_nip == user_nik)
+            owner_conditions.append(Document.tte_signer_nip == user_nik)
+        if user_nama:
+            owner_conditions.append(func.lower(Document.target_signer_name) == user_nama)
+            owner_conditions.append(func.lower(Document.tte_signer_name) == user_nama)
+
+        query = query.where(or_(*owner_conditions))
+
+    all_pending = db.exec(query.order_by(Document.uploaded_at.desc())).all()
 
     type_counts = defaultdict(int)
     signer_counts = defaultdict(int)

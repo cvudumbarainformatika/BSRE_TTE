@@ -1,5 +1,6 @@
-from sqlmodel import Session, select, text, func
+from sqlmodel import Session, select, text, func, or_
 from app.Models.Document import Document
+from app.Models.User import User
 from typing import Optional, List
 from datetime import datetime
 
@@ -25,13 +26,36 @@ class DocumentRepository:
         tte_status: Optional[str] = None,
         search: Optional[str] = None,
         limit: int = 20,
-        offset: int = 0
+        offset: int = 0,
+        filter_user: Optional[User] = None
     ) -> (List[Document], int):
         """
         Query dokumen dengan SQL-standard pagination dan filter.
-        Kompatibel dengan MySQL dan PostgreSQL.
+        Mendukung pemfilteran kepemilikan dokumen user (kecuali programmer).
         """
         query = select(Document)
+
+        # Pembatasan Hak Akses: Akun non-programmer HANYA melihat dokumen miliknya
+        if filter_user and not filter_user.is_programmer:
+            u_nip = (filter_user.nip or "").strip()
+            u_nik = (filter_user.nik or "").strip()
+            u_nama = (filter_user.nama or "").strip().lower()
+
+            owner_conds = [
+                Document.uploaded_by == filter_user.id,
+                Document.approved_by == filter_user.id
+            ]
+            if u_nip:
+                owner_conds.append(Document.target_signer_nip == u_nip)
+                owner_conds.append(Document.tte_signer_nip == u_nip)
+            if u_nik:
+                owner_conds.append(Document.target_signer_nip == u_nik)
+                owner_conds.append(Document.tte_signer_nip == u_nik)
+            if u_nama:
+                owner_conds.append(func.lower(Document.target_signer_name) == u_nama)
+                owner_conds.append(func.lower(Document.tte_signer_name) == u_nama)
+
+            query = query.where(or_(*owner_conds))
 
         if kunjungan_id:
             query = query.where(Document.kunjungan_id == kunjungan_id)

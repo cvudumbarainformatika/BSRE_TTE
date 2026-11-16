@@ -106,8 +106,8 @@
         </Button>
       </div>
 
-      <!-- Filter Penandatangan Tujuan (Dokumen Ini Untuk Siapa) -->
-      <div v-if="Object.keys(summaryBySigner).length > 0" class="flex flex-wrap items-center gap-1.5 min-w-0">
+      <!-- Filter Penandatangan Tujuan (Dokumen Ini Untuk Siapa - Hanya muncul jika ada lebih dari 1 penandatangan / Programmer Mode) -->
+      <div v-if="Object.keys(summaryBySigner).length > 1" class="flex flex-wrap items-center gap-1.5 min-w-0">
         <span class="text-[11px] font-semibold text-muted-foreground mr-1 flex items-center gap-1 shrink-0">
           <UserCheck class="w-3.5 h-3.5 text-primary shrink-0" />
           <span>Tujuan TTE:</span>
