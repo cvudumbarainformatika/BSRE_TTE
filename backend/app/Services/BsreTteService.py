@@ -333,11 +333,16 @@ class BsreTteService:
 
             sign_url = f"{self.base_url}/api/sign/pdf"
             try:
+                # Sanitasi nama file untuk multipart agar aman dari karakter khusus/spasi di gateway Kominfo
+                safe_filename = f"dokumen_tte_{doc_id}.pdf"
                 with open(input_pdf_path, "rb") as f_pdf:
-                    files = {"file": (os.path.basename(input_pdf_path), f_pdf, "application/pdf")}
+                    files = {"file": (safe_filename, f_pdf, "application/pdf")}
+                    
                     # Sesuai spesifikasi resmi Esign-Client BSSN:
-                    # Koordinat wajib integer bulat, dan jika menggunakan koordinat (xAxis, yAxis)
-                    # maka tag_koordinat TIDAK boleh diisi agar parser PDF BSSN tidak error/crash mencari tag teks.
+                    # Koordinat wajib integer bulat, lebar/tinggi minimal 70 pt agar generator QR tidak crash
+                    safe_w = max(70, int(float(width or 80)))
+                    safe_h = max(70, int(float(height or 80)))
+                    
                     data = {
                         "nik": effective_nik,
                         "passphrase": passphrase.strip(),
@@ -347,8 +352,8 @@ class BsreTteService:
                         "linkQR": verify_url,
                         "xAxis": str(int(float(x_axis))),
                         "yAxis": str(int(float(y_axis))),
-                        "width": str(int(float(width))),
-                        "height": str(int(float(height))),
+                        "width": str(safe_w),
+                        "height": str(safe_h),
                         "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
                         "location": "Kota Probolinggo"
                     }
