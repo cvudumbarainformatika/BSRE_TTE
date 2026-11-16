@@ -335,6 +335,9 @@ class BsreTteService:
             try:
                 with open(input_pdf_path, "rb") as f_pdf:
                     files = {"file": (os.path.basename(input_pdf_path), f_pdf, "application/pdf")}
+                    # Sesuai spesifikasi resmi Esign-Client BSSN:
+                    # Koordinat wajib integer bulat, dan jika menggunakan koordinat (xAxis, yAxis)
+                    # maka tag_koordinat TIDAK boleh diisi agar parser PDF BSSN tidak error/crash mencari tag teks.
                     data = {
                         "nik": effective_nik,
                         "passphrase": passphrase.strip(),
@@ -342,20 +345,24 @@ class BsreTteService:
                         "page": str(page),
                         "image": "false",
                         "linkQR": verify_url,
-                        "xAxis": str(x_axis),
-                        "yAxis": str(y_axis),
-                        "width": str(width),
-                        "height": str(height),
-                        "tag_koordinat": "#",
+                        "xAxis": str(int(float(x_axis))),
+                        "yAxis": str(int(float(y_axis))),
+                        "width": str(int(float(width))),
+                        "height": str(int(float(height))),
                         "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
                         "location": "Kota Probolinggo"
+                    }
+                    sign_timeout = max(90.0, float(self.timeout or 90.0))
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RSUD-Moh-Saleh-EsignClient/1.0"
                     }
                     response = httpx.post(
                         sign_url,
                         data=data,
                         files=files,
+                        headers=headers,
                         auth=(self.username, self.password),
-                        timeout=self.timeout
+                        timeout=sign_timeout
                     )
 
                     if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/pdf"):
