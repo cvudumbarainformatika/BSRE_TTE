@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Request, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -25,16 +25,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
     db: Session = Depends(get_session)
 ) -> User:
-    if not credentials:
+    token = None
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif request and request.query_params.get("token"):
+        token = request.query_params.get("token")
+    elif request and "access_token" in request.cookies:
+        token = request.cookies.get("access_token")
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Autentikasi diperlukan. Sertakan Bearer token JWT.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = credentials.credentials
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")

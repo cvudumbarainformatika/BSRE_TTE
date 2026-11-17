@@ -55,10 +55,12 @@
         <Button
           size="sm"
           class="h-8 text-xs bg-primary text-primary-foreground font-semibold gap-1.5 rounded-lg"
+          :disabled="isDownloading"
           @click="downloadDocument"
         >
-          <Download class="w-3.5 h-3.5" />
-          <span>Unduh</span>
+          <div v-if="isDownloading" class="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+          <Download v-else class="w-3.5 h-3.5" />
+          <span>{{ isDownloading ? 'Mengunduh...' : 'Unduh' }}</span>
         </Button>
 
         <Button
@@ -153,7 +155,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { documentApi } from '@/services/api'
+import api, { documentApi } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -220,14 +222,40 @@ const viewUrl = computed(() => {
   return `${documentApi.getViewUrl(props.document.id)}/${safeFilename}?version=${ver}&t=${Date.now()}`
 })
 
+const isDownloading = ref(false)
+
 const downloadUrl = computed(() => {
   if (!props.document?.id) return '#'
-  return documentApi.getDownloadUrl(props.document.id)
+  const token = localStorage.getItem('token') || ''
+  const baseUrl = documentApi.getDownloadUrl(props.document.id)
+  return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl
 })
 
-const downloadDocument = () => {
-  if (downloadUrl.value && downloadUrl.value !== '#') {
-    window.open(downloadUrl.value, '_blank')
+const downloadDocument = async () => {
+  if (!props.document?.id || isDownloading.value) return
+  isDownloading.value = true
+  try {
+    const res = await api.get(`/document/${props.document.id}/download`, {
+      responseType: 'blob'
+    })
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const rawTitle = props.document.title || props.document.filename || `Dokumen_${props.document.id}`
+    const safeFilename = rawTitle.endsWith('.pdf') ? rawTitle : `${rawTitle}.pdf`
+    link.setAttribute('download', safeFilename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('Gagal mengunduh dokumen secara langsung, mencoba fallback URL:', err)
+    if (downloadUrl.value && downloadUrl.value !== '#') {
+      window.open(downloadUrl.value, '_blank')
+    }
+  } finally {
+    isDownloading.value = false
   }
 }
 
