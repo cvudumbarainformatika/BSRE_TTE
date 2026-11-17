@@ -104,6 +104,9 @@ export const uploadTteApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 
+  loadDocumentForEdit: (docId: number | string) =>
+    api.post(`/upload-tte/load-document/${docId}`),
+
   getPagePreviewUrl: (uploadId: string, pageNumber: number) =>
     `${api.defaults.baseURL}/upload-tte/page-preview/${uploadId}/${pageNumber}`,
 

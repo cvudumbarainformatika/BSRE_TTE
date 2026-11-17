@@ -105,6 +105,97 @@ async def convert_and_preview(
     }
 
 
+@router.post("/load-document/{doc_id}")
+async def load_document_for_edit(
+    doc_id: int,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Memuat dokumen yang sudah ada di database untuk diedit atau ditandatangani ulang.
+    Menyiapkan sesi pratinjau halaman PDF secara otomatis tanpa perlu mengunggah ulang file.
+    """
+    doc = db.get(Document, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan")
+
+    # Cari file fisik yang valid
+    candidate_paths = [doc.original_path, doc.storage_path]
+    target_file = None
+    for p in candidate_paths:
+        if p and os.path.exists(p):
+            target_file = p
+            break
+
+    if not target_file:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Berkas fisik dokumen '{doc.filename}' tidak ditemukan di penyimpanan server."
+        )
+
+    upload_id = str(uuid.uuid4())
+    session_dir = os.path.join(TEMP_UPLOAD_DIR, upload_id)
+    os.makedirs(session_dir, exist_ok=True)
+
+    import shutil
+    ext = os.path.splitext(target_file)[1].lower()
+    session_input_path = os.path.join(session_dir, f"original_{doc.filename}")
+    shutil.copyfile(target_file, session_input_path)
+
+    try:
+        if ext == ".pdf":
+            pdf_path = session_input_path
+        else:
+            pdf_path = converter_service.convert_to_pdf(session_input_path, session_dir)
+    except Exception as e:
+        logger.error(f"Gagal memproses berkas dokumen {doc_id}: {e}")
+        raise HTTPException(status_code=400, detail=f"Gagal memproses pratinjau dokumen: {str(e)}")
+
+    pdf_info = converter_service.get_pdf_metadata_and_pages(pdf_path)
+    total_pages = pdf_info.get("total_pages", 1)
+
+    previews = []
+    for p in range(1, total_pages + 1):
+        png_filename = f"page_{p}.png"
+        png_path = os.path.join(session_dir, png_filename)
+        if p == 1:
+            converter_service.render_page_to_png(pdf_path, p, png_path)
+        
+        previews.append({
+            "page_number": p,
+            "width": pdf_info["pages"][p-1]["width"] if p-1 < len(pdf_info["pages"]) else 595.27,
+            "height": pdf_info["pages"][p-1]["height"] if p-1 < len(pdf_info["pages"]) else 841.89,
+            "preview_url": f"/api/v1/upload-tte/page-preview/{upload_id}/{p}"
+        })
+
+    manifest = {
+        "upload_id": upload_id,
+        "original_filename": doc.filename,
+        "original_path": session_input_path,
+        "pdf_path": pdf_path,
+        "total_pages": total_pages,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_document_id": doc.id
+    }
+    with open(os.path.join(session_dir, "manifest.json"), "w") as f:
+        json.dump(manifest, f)
+
+    return {
+        "upload_id": upload_id,
+        "original_filename": doc.filename,
+        "total_pages": total_pages,
+        "pages": previews,
+        "first_page": previews[0] if previews else None,
+        "document": {
+            "id": doc.id,
+            "title": doc.title or doc.filename,
+            "document_number": getattr(doc, "document_number", None) or getattr(doc, "nomor_surat", None) or "",
+            "category": doc.document_type or "general",
+            "tte_status": doc.tte_status
+        }
+    }
+
+
 @router.get("/page-preview/{upload_id}/{page_number}")
 def get_page_preview(upload_id: str, page_number: int):
     """Mengalirkan gambar PNG pratinjau halaman PDF untuk kanvas interaktif"""

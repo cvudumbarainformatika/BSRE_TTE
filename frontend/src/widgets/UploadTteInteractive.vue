@@ -954,8 +954,9 @@ const goToDocumentList = () => {
   window.dispatchEvent(new CustomEvent('nav-tab-change', { detail: 'dokumen' }))
 }
 
-const loadExistingDocument = (doc) => {
+const loadExistingDocument = async (doc) => {
   if (!doc) return
+  isConverting.value = true
   form.perihal = doc.title || doc.filename || ''
   form.nomor_surat = doc.document_number || doc.nomor_surat || ''
   if (doc.category || doc.document_type) {
@@ -963,6 +964,27 @@ const loadExistingDocument = (doc) => {
     if (matched) {
       form.kategori = matched.value
     }
+  }
+
+  try {
+    const res = await uploadTteApi.loadDocumentForEdit(doc.id)
+    uploadSession.value = res.data
+    currentPage.value = 1
+    pageInputNumber.value = 1
+    form.target_page = 1
+    if (res.data.document) {
+      if (res.data.document.title) form.perihal = res.data.document.title
+      if (res.data.document.document_number) form.nomor_surat = res.data.document.document_number
+      if (res.data.document.category) {
+        const m = kategoriOptions.find(k => k.value === res.data.document.category)
+        if (m) form.kategori = m.value
+      }
+    }
+  } catch (err) {
+    console.error('Gagal memuat pratinjau dokumen:', err)
+    alert(err.response?.data?.detail || 'Gagal memuat pratinjau dokumen.')
+  } finally {
+    isConverting.value = false
   }
 }
 
