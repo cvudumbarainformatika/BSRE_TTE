@@ -1,4 +1,5 @@
 import os
+import time
 import hashlib
 import uuid
 import io
@@ -367,18 +368,52 @@ class BsreTteService:
                             "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
                             "location": "Kota Probolinggo"
                         }
-                    sign_timeout = max(90.0, float(self.timeout or 90.0))
+                    sign_timeout = max(120.0, float(self.timeout or 120.0))
                     headers = {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RSUD-Moh-Saleh-EsignClient/1.0"
                     }
-                    response = httpx.post(
-                        sign_url,
-                        data=data,
-                        files=files,
-                        headers=headers,
-                        auth=(self.username, self.password),
-                        timeout=sign_timeout
-                    )
+
+                    with open(input_pdf_path, "rb") as f_pdf:
+                        pdf_bytes = f_pdf.read()
+
+                    max_retries = 3
+                    response = None
+                    last_conn_err = None
+
+                    for attempt in range(1, max_retries + 1):
+                        try:
+                            logger.info(f"Mengirim permintaan sign PDF ke BSrE Kominfo ({sign_url}) [Percobaan {attempt}/{max_retries}]...")
+                            files = {"file": (safe_filename, io.BytesIO(pdf_bytes), "application/pdf")}
+                            response = httpx.post(
+                                sign_url,
+                                data=data,
+                                files=files,
+                                headers=headers,
+                                auth=(self.username, self.password),
+                                timeout=sign_timeout
+                            )
+                            # Berhasil terhubung dan mendapat respon HTTP dari server
+                            break
+                        except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.WriteTimeout) as net_err:
+                            last_conn_err = net_err
+                            logger.warning(f"Koneksi ke gateway Kominfo/BSSN terputus/reset pada percobaan {attempt}/{max_retries}: {net_err}")
+                            if attempt < max_retries:
+                                time.sleep(2.0 * attempt)
+                            else:
+                                raise ValueError(
+                                    f"Gagal terhubung ke Server Esign-Client BSrE ({self.base_url}) setelah {max_retries}x percobaan (antrean server Kominfo/BSSN sedang padat/gangguan): {str(net_err)}"
+                                )
+                        except Exception as e:
+                            last_conn_err = e
+                            if "104" in str(e) or "reset" in str(e).lower() or "broken" in str(e).lower():
+                                logger.warning(f"Connection reset oleh server Kominfo pada percobaan {attempt}/{max_retries}: {e}")
+                                if attempt < max_retries:
+                                    time.sleep(2.0 * attempt)
+                                    continue
+                            raise
+
+                    if response is None and last_conn_err:
+                        raise ValueError(f"Gagal terhubung ke Server Esign-Client BSrE ({self.base_url}): {str(last_conn_err)}")
 
                     is_pdf_response = (
                         response.status_code == 200
