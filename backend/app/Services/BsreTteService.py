@@ -370,7 +370,16 @@ class BsreTteService:
                         timeout=sign_timeout
                     )
 
-                    if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/pdf"):
+                    is_pdf_response = (
+                        response.status_code == 200
+                        and (
+                            response.content.startswith(b"%PDF")
+                            or "pdf" in response.headers.get("content-type", "").lower()
+                            or "octet-stream" in response.headers.get("content-type", "").lower()
+                        )
+                    )
+
+                    if is_pdf_response:
                         os.makedirs(os.path.dirname(output_pdf_path), exist_ok=True)
                         with open(output_pdf_path, "wb") as f_out:
                             f_out.write(response.content)
