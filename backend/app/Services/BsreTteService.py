@@ -296,7 +296,8 @@ class BsreTteService:
         x_axis: int = 400,
         y_axis: int = 150,
         width: int = 80,
-        height: int = 80
+        height: int = 80,
+        tampilan: str = "visible"
     ) -> dict:
         """
         Melakukan proses penandatanganan elektronik TTE BSRE:
@@ -338,25 +339,34 @@ class BsreTteService:
                 with open(input_pdf_path, "rb") as f_pdf:
                     files = {"file": (safe_filename, f_pdf, "application/pdf")}
                     
-                    # Sesuai spesifikasi resmi Esign-Client BSSN:
-                    # Koordinat wajib integer bulat, lebar/tinggi minimal 70 pt agar generator QR tidak crash
-                    safe_w = max(70, int(float(width or 80)))
-                    safe_h = max(70, int(float(height or 80)))
-                    
-                    data = {
-                        "nik": effective_nik,
-                        "passphrase": passphrase.strip(),
-                        "tampilan": "visible",
-                        "page": str(page),
-                        "image": "false",
-                        "linkQR": verify_url,
-                        "xAxis": str(int(float(x_axis))),
-                        "yAxis": str(int(float(y_axis))),
-                        "width": str(safe_w),
-                        "height": str(safe_h),
-                        "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
-                        "location": "Kota Probolinggo"
-                    }
+                    if tampilan == "invisible":
+                        # Spesifikasi resmi BSSN untuk invisible signature:
+                        # Seluruh parameter koordinat dan visual tidak perlu diisi
+                        data = {
+                            "nik": effective_nik,
+                            "passphrase": passphrase.strip(),
+                            "tampilan": "invisible"
+                        }
+                    else:
+                        # Sesuai spesifikasi resmi Esign-Client BSSN (Visible):
+                        # Koordinat wajib integer bulat, lebar/tinggi minimal 70 pt agar generator QR tidak crash
+                        safe_w = max(70, int(float(width or 80)))
+                        safe_h = max(70, int(float(height or 80)))
+                        
+                        data = {
+                            "nik": effective_nik,
+                            "passphrase": passphrase.strip(),
+                            "tampilan": "visible",
+                            "page": str(page),
+                            "image": "false",
+                            "linkQR": verify_url,
+                            "xAxis": str(int(float(x_axis))),
+                            "yAxis": str(int(float(y_axis))),
+                            "width": str(safe_w),
+                            "height": str(safe_h),
+                            "reason": "Dokumen Resmi RSUD Dokter Mohammad Saleh",
+                            "location": "Kota Probolinggo"
+                        }
                     sign_timeout = max(90.0, float(self.timeout or 90.0))
                     headers = {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RSUD-Moh-Saleh-EsignClient/1.0"

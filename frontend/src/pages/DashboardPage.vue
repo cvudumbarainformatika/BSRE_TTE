@@ -212,6 +212,7 @@
         ref="docListRef"
         :user-role="currentUser?.role || 'dokter'"
         @view-document="openViewer"
+        @edit-document="onEditDocument"
       />
     </div>
 
@@ -220,6 +221,7 @@
     <!-- ===================================================================== -->
     <div v-else-if="currentNav === 'upload'" class="space-y-4">
       <UploadTteInteractive
+        ref="uploadWidgetRef"
         @document-signed="onDocumentSigned"
         @navigate-to="navigateToNav"
       />
@@ -252,7 +254,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { documentApi } from '@/services/api'
 import AppPage from '@/components/AppPage.vue'
 import AppTabs from '@/components/AppTabs.vue'
@@ -303,9 +305,19 @@ const currentNav = ref(props.activeNav || 'dashboard')
 
 const inboxRef = ref(null)
 const docListRef = ref(null)
+const uploadWidgetRef = ref(null)
 const selectedDoc = ref(null)
 const isViewerOpen = ref(false)
 const pendingInboxCount = ref(props.pendingCount || 0)
+
+const onEditDocument = (doc) => {
+  navigateToNav('upload')
+  nextTick(() => {
+    if (uploadWidgetRef.value?.loadExistingDocument) {
+      uploadWidgetRef.value.loadExistingDocument(doc)
+    }
+  })
+}
 
 // Data Statistik Riil dari Database PostgreSQL
 const stats = reactive({

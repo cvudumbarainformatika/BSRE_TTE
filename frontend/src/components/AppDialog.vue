@@ -18,7 +18,8 @@ const props = defineProps({
   confirmText: { type: String, default: 'Lanjutkan' },
   cancelText: { type: String, default: 'Batal' },
   confirmDisabled: { type: Boolean, default: false },
-  hideFooter: { type: Boolean, default: false }
+  hideFooter: { type: Boolean, default: false },
+  hideConfirm: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
@@ -59,7 +60,7 @@ function onCancel() {
           <Button variant="outline" size="sm" @click="onCancel">
             {{ cancelText }}
           </Button>
-          <Button size="sm" :disabled="confirmDisabled" @click="onConfirm">
+          <Button v-if="!hideConfirm" size="sm" :disabled="confirmDisabled" @click="onConfirm">
             {{ confirmText }}
           </Button>
         </slot>

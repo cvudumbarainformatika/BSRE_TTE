@@ -69,12 +69,12 @@ export const documentApi = {
 
   delete: (id: number | string) => api.delete(`/document/${id}`),
 
-  // TTE BSRE Tunggal & Batch Sign
+  // TTE BSRE Tunggal & Batch Sign (Timeout 300s / 5 menit untuk mengakomodasi antrean lambat HSM BSrE/BSSN)
   signTte: (id: number | string, payload: { passphrase?: string; catatan?: string } = {}) =>
-    api.post(`/tte/${id}/sign`, payload),
+    api.post(`/tte/${id}/sign`, payload, { timeout: 300000 }),
 
   batchSignTte: (payload: { document_ids: number[]; passphrase?: string; catatan?: string }) =>
-    api.post("/tte/batch-sign", payload),
+    api.post("/tte/batch-sign", payload, { timeout: 300000 }),
 
   getPendingMyDocuments: (params?: { document_type?: string }) =>
     api.get("/tte/pending-my-documents", { params }),
@@ -110,6 +110,7 @@ export const uploadTteApi = {
   processSign: (formData: FormData) =>
     api.post("/upload-tte/process-sign", formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 300000, // Timeout 5 menit saat gateway Kominfo/BSSN mengalami antrean padat
     }),
 };
 

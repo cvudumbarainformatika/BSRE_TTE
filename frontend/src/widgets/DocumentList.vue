@@ -166,6 +166,15 @@
         <Button
           variant="outline"
           size="icon"
+          class="h-8 w-8 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 rounded-lg shadow-xs shrink-0 transition-transform active:scale-95"
+          title="Edit Dokumen & TTE PDF"
+          @click="emitEdit(item)"
+        >
+          <Pencil class="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           class="h-8 w-8 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 rounded-lg shadow-xs shrink-0 transition-transform active:scale-95"
           title="Verifikasi Keaslian Sertifikat BSrE BSSN"
           @click="openVerifyModal(item)"
@@ -245,7 +254,7 @@ import { documentApi } from '@/services/api'
 import DataTablePremium from '@/components/DataTablePremium.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, ShieldCheck, Eye, CheckCircle2, Clock, XCircle } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck, Eye, Pencil, CheckCircle2, Clock, XCircle } from 'lucide-vue-next'
 
 const props = defineProps({
   kunjunganId: {
@@ -262,7 +271,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['view-document'])
+const emit = defineEmits(['view-document', 'edit-document'])
+
+const emitEdit = (item) => {
+  emit('edit-document', item)
+}
 
 // Struktur Kolom Gmail-Style: Kolom Aksi dihilangkan dari header desktop, muncul saat baris di-hover
 const columns = [

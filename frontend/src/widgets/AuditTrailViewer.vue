@@ -337,6 +337,7 @@
       :description="`Rekam jejak resmi aktivitas TTE #${selectedLog?.id || ''} pada sistem BSrE BSSN`"
       max-width="sm:max-w-xl"
       cancel-text="Tutup"
+      :hide-confirm="true"
     >
       <div v-if="selectedLog" class="space-y-3 text-xs py-1 min-w-0 max-w-full overflow-hidden">
         <!-- Box 1: Metadata Transaksi Kriptografi (Grid 2 Kolom Kokoh Anti-Overflow) -->

@@ -248,11 +248,34 @@ async def process_upload_and_sign(
     }
 
     # Pembubuhan Stempel Visual dan TTE BSrE
+    # Jaminan 100% Presisi:
+    # 1. Bubuhkan stempel visual resmi QR Code berlogo RSUD + Footer BSrE ke dokumen
+    #    menggunakan kalkulasi koordinat presisi ReportLab agar 100% identik dengan kanvas preview.
+    # 2. Jika Production (BSRE_MOCK_MODE=False), kirimkan dokumen berstempel tersebut ke Engine BSrE BSSN
+    #    dengan mode tampilan: 'invisible' untuk menyematkan Sertifikat Kriptografi Digital X.509 Sah dari BSSN.
+    temp_visual_pdf = os.path.join(perm_dir, f"TEMP_VISUAL_{doc_id}.pdf")
     try:
+        # Langkah 1: Bubuhkan visual QR berlogo RSUD di titik yang dipilih pengguna
+        mock_res = bsre_service.stamp_custom_coordinate(
+            input_pdf_path=input_pdf_path,
+            output_pdf_path=temp_visual_pdf,
+            signer_name=signer_name,
+            signer_nip=signer_nip,
+            signer_nik=signer_nik,
+            doc_id=doc_id,
+            target_page=target_page,
+            x_point=stamp_x,
+            y_point=stamp_y,
+            width_point=stamp_w,
+            height_point=stamp_h,
+            stamp_type=tipe_stempel,
+            metadata_payload=content_payload
+        )
+
         if not settings.BSRE_MOCK_MODE:
-            # Mode Live Production ke Engine Esign Kominfo / BSrE BSSN
+            # Langkah 2: Otorisasi & Segel Kriptografi Sah BSSN RI (Invisible Signature Field)
             sign_res = bsre_service.sign_document(
-                input_pdf_path=input_pdf_path,
+                input_pdf_path=temp_visual_pdf,
                 output_pdf_path=output_pdf_path,
                 signer_name=signer_name,
                 signer_nik=signer_nik,
@@ -261,28 +284,14 @@ async def process_upload_and_sign(
                 passphrase=passphrase.strip(),
                 metadata_payload=content_payload,
                 page=target_page,
-                x_axis=int(stamp_x),
-                y_axis=int(stamp_y),
-                width=int(stamp_w),
-                height=int(stamp_h)
+                tampilan="invisible"
             )
         else:
-            # Mode Simulasi / Mock Dev
-            sign_res = bsre_service.stamp_custom_coordinate(
-                input_pdf_path=input_pdf_path,
-                output_pdf_path=output_pdf_path,
-                signer_name=signer_name,
-                signer_nip=signer_nip,
-                signer_nik=signer_nik,
-                doc_id=doc_id,
-                target_page=target_page,
-                x_point=stamp_x,
-                y_point=stamp_y,
-                width_point=stamp_w,
-                height_point=stamp_h,
-                stamp_type=tipe_stempel,
-                metadata_payload=content_payload
-            )
+            # Mode Simulasi / Mock Dev: gunakan hasil stempel langsung
+            if os.path.exists(temp_visual_pdf):
+                import shutil
+                shutil.copyfile(temp_visual_pdf, output_pdf_path)
+            sign_res = mock_res
     except Exception as e:
         logger.error(f"Gagal melakukan stempel TTE: {e}")
         # Ketentuan Poin 9 Audit BSrE BSSN: Rekam log kegagalan tanda tangan
@@ -310,6 +319,13 @@ async def process_upload_and_sign(
             logger.error(f"Gagal mencatat audit log SIGN_TTE_FAILED di upload: {log_err}")
 
         raise HTTPException(status_code=400, detail=f"Gagal menandatangani dokumen: {str(e)}")
+
+    finally:
+        if os.path.exists(temp_visual_pdf):
+            try:
+                os.remove(temp_visual_pdf)
+            except Exception:
+                pass
 
     file_size = os.path.getsize(output_pdf_path)
     doc_hash = sign_res.get("pdf_hash") or bsre_service.calculate_file_hash(output_pdf_path)

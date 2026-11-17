@@ -953,4 +953,20 @@ const goToDocumentList = () => {
   emit('navigate-to', 'dokumen')
   window.dispatchEvent(new CustomEvent('nav-tab-change', { detail: 'dokumen' }))
 }
+
+const loadExistingDocument = (doc) => {
+  if (!doc) return
+  form.perihal = doc.title || doc.filename || ''
+  form.nomor_surat = doc.document_number || doc.nomor_surat || ''
+  if (doc.category || doc.document_type) {
+    const matched = kategoriOptions.find(k => k.value === (doc.category || doc.document_type))
+    if (matched) {
+      form.kategori = matched.value
+    }
+  }
+}
+
+defineExpose({
+  loadExistingDocument
+})
 </script>
