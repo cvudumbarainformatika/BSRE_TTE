@@ -219,7 +219,7 @@
               >
                 <div v-if="isSigning" class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
                 <FileSignature v-else class="w-4 h-4" />
-                <span>{{ isSigning ? 'Memproses Pengesahan BSrE...' : 'Proses & Tanda Tangani Dokumen' }}</span>
+                <span>{{ isSigning ? (isEditMode ? 'Memproses TTE Ulang BSrE...' : 'Memproses Pengesahan BSrE...') : (isEditMode ? 'TTE Ulang Dokumen' : 'Proses & Tanda Tangani Dokumen') }}</span>
               </Button>
             </div>
           </CardContent>
@@ -574,6 +574,7 @@ const pageContainerRef = ref(null)
 const isDraggingFile = ref(false)
 const isConverting = ref(false)
 const isSigning = ref(false)
+const isEditMode = ref(false)
 const uploadSession = ref(null)
 const currentPage = ref(1)
 const pageInputNumber = ref(1)
@@ -648,6 +649,7 @@ const onFileDrop = (e) => {
 
 // Upload & Convert
 const handleFileUpload = async (file) => {
+  isEditMode.value = false
   isConverting.value = true
   const formData = new FormData()
   formData.append('file', file)
@@ -956,6 +958,7 @@ const goToDocumentList = () => {
 
 const loadExistingDocument = async (doc) => {
   if (!doc) return
+  isEditMode.value = true
   isConverting.value = true
   form.perihal = doc.title || doc.filename || ''
   form.nomor_surat = doc.document_number || doc.nomor_surat || ''
@@ -972,9 +975,10 @@ const loadExistingDocument = async (doc) => {
     currentPage.value = 1
     pageInputNumber.value = 1
     form.target_page = 1
-    if (res.data.document) {
+    if (res.data?.document) {
       if (res.data.document.title) form.perihal = res.data.document.title
-      if (res.data.document.document_number) form.nomor_surat = res.data.document.document_number
+      const extractedNomor = res.data.document.nomor_surat || res.data.document.document_number
+      if (extractedNomor) form.nomor_surat = extractedNomor
       if (res.data.document.category) {
         const m = kategoriOptions.find(k => k.value === res.data.document.category)
         if (m) form.kategori = m.value

@@ -180,6 +180,25 @@ async def load_document_for_edit(
     with open(os.path.join(session_dir, "manifest.json"), "w") as f:
         json.dump(manifest, f)
 
+    # Ekstrak nomor surat dari metadata_json atau description
+    extracted_no_surat = ""
+    if doc.metadata_json:
+        try:
+            m = json.loads(doc.metadata_json)
+            extracted_no_surat = m.get("nomor_surat") or m.get("document_number") or ""
+        except Exception:
+            pass
+
+    if not extracted_no_surat and doc.description:
+        import re
+        match = re.search(r"No\.?\s*Dokumen:\s*([^•\n\r]+)", doc.description, re.IGNORECASE)
+        if match:
+            extracted_no_surat = match.group(1).strip()
+        elif "Nomor Surat:" in doc.description:
+            match = re.search(r"Nomor\s*Surat:\s*([^•\n\r]+)", doc.description, re.IGNORECASE)
+            if match:
+                extracted_no_surat = match.group(1).strip()
+
     return {
         "upload_id": upload_id,
         "original_filename": doc.filename,
@@ -189,7 +208,8 @@ async def load_document_for_edit(
         "document": {
             "id": doc.id,
             "title": doc.title or doc.filename,
-            "document_number": getattr(doc, "document_number", None) or getattr(doc, "nomor_surat", None) or "",
+            "document_number": extracted_no_surat,
+            "nomor_surat": extracted_no_surat,
             "category": doc.document_type or "general",
             "tte_status": doc.tte_status
         }
@@ -307,12 +327,17 @@ async def process_upload_and_sign(
     stamp_x = max(10, min(stamp_x, page_w - stamp_w - 10))
     stamp_y = max(10, min(stamp_y, page_h - stamp_h - 10))
 
-    # Direktori arsip permanen
-    doc_id = int(str(uuid.uuid4().int)[:7])
+    # Direktori arsip permanen (Gunakan ID dokumen yang sudah ada jika mode TTE Ulang)
+    source_doc_id = manifest.get("source_document_id")
+    if source_doc_id:
+        doc_id = int(source_doc_id)
+    else:
+        doc_id = int(str(uuid.uuid4().int)[:7])
+
     perm_dir = os.path.join(settings.BASE_STORAGE_PATH, "documents", "mandiri", str(doc_id))
     os.makedirs(perm_dir, exist_ok=True)
     
-    clean_title = perihal.replace("/", "_").replace("\\", "_")
+    clean_title = (perihal or "dokumen").replace("/", "_").replace("\\", "_")
     output_pdf_filename = f"SIGNED_{clean_title}_{doc_id}.pdf"
     output_pdf_path = os.path.join(perm_dir, output_pdf_filename)
 
@@ -421,35 +446,55 @@ async def process_upload_and_sign(
     file_size = os.path.getsize(output_pdf_path)
     doc_hash = sign_res.get("pdf_hash") or bsre_service.calculate_file_hash(output_pdf_path)
 
-    # Simpan ke tabel Document
-    doc_record = Document(
-        id=doc_id,
-        kunjungan_id=doc_id,
-        pasien_id=0,
-        document_type=kategori,
-        title=perihal,
-        filename=output_pdf_filename,
-        storage_path=output_pdf_path,
-        original_path=input_pdf_path,
-        uploaded_by=current_user.id,
-        uploaded_at=datetime.now(timezone.utc),
-        approved_by=current_user.id,
-        approved_at=datetime.now(timezone.utc),
-        status="signed",
-        description=f"No. Dokumen: {nomor_surat} • Penandatangan: {signer_name}",
-        file_size=file_size,
-        target_signer_nip=signer_nip,
-        target_signer_name=signer_name,
-        is_notified=True,
-        tte_status="SIGNED_BSRE",
-        tte_bsre_id=sign_res.get("bsre_id"),
-        tte_signed_at=datetime.now(timezone.utc),
-        tte_signer_nip=signer_nip,
-        tte_signer_name=signer_name,
-        pdf_hash=doc_hash,
-        metadata_json=json.dumps(content_payload)
-    )
-    db.add(doc_record)
+    # Simpan atau perbarui ke tabel Document
+    existing_doc = db.get(Document, doc_id) if source_doc_id else None
+    if existing_doc:
+        doc_record = existing_doc
+        doc_record.document_type = kategori
+        doc_record.title = perihal
+        doc_record.filename = output_pdf_filename
+        doc_record.storage_path = output_pdf_path
+        doc_record.description = f"No. Dokumen: {nomor_surat} • Penandatangan: {signer_name}" if nomor_surat else f"Penandatangan: {signer_name}"
+        doc_record.file_size = file_size
+        doc_record.target_signer_nip = signer_nip
+        doc_record.target_signer_name = signer_name
+        doc_record.is_notified = True
+        doc_record.tte_status = "SIGNED_BSRE"
+        doc_record.tte_bsre_id = sign_res.get("bsre_id")
+        doc_record.tte_signed_at = datetime.now(timezone.utc)
+        doc_record.tte_signer_nip = signer_nip
+        doc_record.tte_signer_name = signer_name
+        doc_record.pdf_hash = doc_hash
+        doc_record.metadata_json = json.dumps(content_payload)
+    else:
+        doc_record = Document(
+            id=doc_id,
+            kunjungan_id=doc_id,
+            pasien_id=0,
+            document_type=kategori,
+            title=perihal,
+            filename=output_pdf_filename,
+            storage_path=output_pdf_path,
+            original_path=input_pdf_path,
+            uploaded_by=current_user.id,
+            uploaded_at=datetime.now(timezone.utc),
+            approved_by=current_user.id,
+            approved_at=datetime.now(timezone.utc),
+            status="signed",
+            description=f"No. Dokumen: {nomor_surat} • Penandatangan: {signer_name}" if nomor_surat else f"Penandatangan: {signer_name}",
+            file_size=file_size,
+            target_signer_nip=signer_nip,
+            target_signer_name=signer_name,
+            is_notified=True,
+            tte_status="SIGNED_BSRE",
+            tte_bsre_id=sign_res.get("bsre_id"),
+            tte_signed_at=datetime.now(timezone.utc),
+            tte_signer_nip=signer_nip,
+            tte_signer_name=signer_name,
+            pdf_hash=doc_hash,
+            metadata_json=json.dumps(content_payload)
+        )
+        db.add(doc_record)
 
     sig_record = TteSignature(
         document_id=doc_id,
