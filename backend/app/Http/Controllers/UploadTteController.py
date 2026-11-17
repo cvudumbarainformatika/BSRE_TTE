@@ -254,6 +254,7 @@ async def process_upload_and_sign(
     y_percent: float = Form(80.0),      # Posisi Y persentase dari atas (0 - 100)
     width_percent: float = Form(12.0),  # Lebar QR Code persentase terhadap lebar halaman
     height_percent: float = Form(12.0), # Tinggi QR Code (disamakan dengan lebar agar 1:1 persegi)
+    additional_stamps: Optional[str] = Form(None), # Stempel tambahan jika >1 TTD
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -341,6 +342,34 @@ async def process_upload_and_sign(
     output_pdf_filename = f"SIGNED_{clean_title}_{doc_id}.pdf"
     output_pdf_path = os.path.join(perm_dir, output_pdf_filename)
 
+    # Parsing stempel tambahan jika ada
+    extra_stamps_points = []
+    if additional_stamps:
+        try:
+            extras_raw = json.loads(additional_stamps)
+            for ex in extras_raw:
+                ep = int(ex.get("page", target_page))
+                ew_pct = float(ex.get("widthPercent", ex.get("width_percent", width_percent)))
+                ex_pct = float(ex.get("x", ex.get("x_percent", 70.0)))
+                ey_pct = float(ex.get("y", ex.get("y_percent", 80.0)))
+
+                e_dim = (ew_pct / 100.0) * page_w
+                e_x = (ex_pct / 100.0) * page_w
+                e_y = page_h - ((ey_pct / 100.0) * page_h) - e_dim
+
+                e_x = max(10, min(e_x, page_w - e_dim - 10))
+                e_y = max(10, min(e_y, page_h - e_dim - 10))
+
+                extra_stamps_points.append({
+                    "page": ep,
+                    "x": e_x,
+                    "y": e_y,
+                    "w": e_dim,
+                    "h": e_dim
+                })
+        except Exception as ex_err:
+            logger.warning(f"Gagal memproses additional_stamps: {ex_err}")
+
     # Metadata payload
     content_payload = {
         "judul": perihal,
@@ -356,6 +385,7 @@ async def process_upload_and_sign(
             "h": stamp_h,
             "page": target_page
         },
+        "additional_stamps": extra_stamps_points,
         "signer": {
             "nama": signer_name,
             "nip": signer_nip,

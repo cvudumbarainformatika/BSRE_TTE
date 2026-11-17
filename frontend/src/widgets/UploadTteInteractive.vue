@@ -168,22 +168,60 @@
                 <div class="flex items-center justify-between text-[11px]">
                   <span class="flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Status Penempatan:</span>
+                    <span>Stempel Utama:</span>
                   </span>
                   <span class="font-mono font-medium text-foreground">
                     Hal. {{ form.target_page }} • X: {{ stampXPercent.toFixed(1) }}% • Y: {{ stampYPercent.toFixed(1) }}%
                   </span>
                 </div>
+                <!-- Indikator Multiple QR -->
+                <div v-if="extraStamps.length > 0" class="pt-1 border-t border-border/40 text-[11px] text-primary font-medium flex items-center justify-between">
+                  <span>+ {{ extraStamps.length }} Stempel Tambahan Aktif</span>
+                  <span class="text-muted-foreground font-mono">({{ extraStamps.map(s => `Hal. ${s.page}`).join(', ') }})</span>
+                </div>
                 <div class="text-[11px] leading-relaxed text-muted-foreground/90 flex items-start gap-1.5 pt-1 border-t border-border/50">
                   <span class="text-primary font-bold">✨</span>
                   <span>
-                    <strong>Seret Bebas:</strong> Geser stempel ke posisi manapun di kanvas, dan tarik sudut stempel (handle resize) untuk memperbesar atau memperkecil ukuran QR secara bebas dan presisi.
+                    <strong>Seret Bebas:</strong> Geser stempel ke posisi manapun di kanvas, dan tarik sudut stempel (handle resize) untuk memperbesar atau memperkecil ukuran QR secara presisi.
                   </span>
                 </div>
               </div>
 
-              <!-- Tombol Reset Cepat Posisi & Ukuran -->
-              <div class="flex items-center justify-end">
+              <!-- Tombol Reset & Preset Cepat Posisi -->
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-[10px] px-2 border-border"
+                    title="Letakkan stempel di kanan bawah (format tanda tangan lazim)"
+                    @click="applyPositionPreset('right-bottom')"
+                  >
+                    Kanan Bawah
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-[10px] px-2 border-border"
+                    title="Letakkan stempel di kiri bawah (format saksi/mengetahui)"
+                    @click="applyPositionPreset('left-bottom')"
+                  >
+                    Kiri Bawah
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-[10px] px-2 border-border"
+                    title="Letakkan stempel di tengah bawah"
+                    @click="applyPositionPreset('center-bottom')"
+                  >
+                    Tengah
+                  </Button>
+                </div>
+
                 <Button
                   type="button"
                   variant="ghost"
@@ -192,7 +230,7 @@
                   @click="resetStampToDefault"
                 >
                   <RotateCcw class="w-3 h-3" />
-                  <span>Reset Ukuran & Posisi</span>
+                  <span>Reset</span>
                 </Button>
               </div>
             </div>
@@ -229,10 +267,20 @@
       <!-- =================================================================== -->
       <!-- KOLOM KANAN: INTERACTIVE PDF LAYOUT VIEWER & STEMPEL QR MURNI       -->
       <!-- =================================================================== -->
-      <div class="lg:col-span-7">
-        <Card class="glass-panel border-border shadow-xs overflow-hidden">
-          <!-- Card Header & Navigation Bar -->
-          <CardHeader class="p-3.5 sm:p-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/20">
+      <div
+        class="lg:col-span-7 transition-all duration-300"
+        :class="[
+          isFullscreen
+            ? 'fixed inset-0 z-50 bg-background/95 backdrop-blur-md p-4 sm:p-6 flex flex-col h-screen w-screen'
+            : ''
+        ]"
+      >
+        <Card
+          class="glass-panel border-border shadow-xs overflow-hidden flex flex-col"
+          :class="[isFullscreen ? 'h-full border-primary/40 shadow-2xl' : '']"
+        >
+          <!-- Card Header: Title, Status, Presets & Fullscreen Toggle -->
+          <CardHeader class="p-3.5 sm:p-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/20 shrink-0">
             <div class="flex items-center gap-2">
               <Eye class="w-4 h-4 text-primary" />
               <CardTitle class="text-xs sm:text-sm font-bold text-foreground">
@@ -243,78 +291,44 @@
               </CardTitle>
             </div>
 
-            <!-- Pagination Controls (Awal, Prev, Input Halaman, Next, Akhir) -->
-            <div v-if="uploadSession && totalPages > 1" class="flex items-center gap-1.5 w-full sm:w-auto justify-end">
-              <!-- Halaman Pertama -->
+            <!-- Header Quick Tools: Panduan Grid & Fullscreen -->
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <!-- Toggle Grid Bantu Penempatan -->
               <Button
                 variant="outline"
-                size="icon"
-                class="h-8 w-8 rounded-lg border-border"
-                :disabled="currentPage <= 1"
-                title="Halaman Pertama (Hal. 1)"
-                @click="goToPage(1)"
+                size="sm"
+                class="h-8 text-xs gap-1.5 px-2.5 rounded-lg border-border"
+                :class="[showGrid ? 'bg-primary/10 text-primary border-primary/50' : 'text-muted-foreground']"
+                title="Tampilkan garis kisi-kisi pembantu lurus penempatan stempel"
+                @click="showGrid = !showGrid"
               >
-                <ChevronsLeft class="w-4 h-4" />
+                <Grid class="w-3.5 h-3.5" />
+                <span class="hidden sm:inline">Garis Kisi</span>
               </Button>
 
-              <!-- Halaman Sebelumnya -->
+              <!-- Tombol Fullscreen Mode -->
               <Button
                 variant="outline"
-                size="icon"
-                class="h-8 w-8 rounded-lg border-border"
-                :disabled="currentPage <= 1"
-                title="Halaman Sebelumnya"
-                @click="goToPage(currentPage - 1)"
+                size="sm"
+                class="h-8 text-xs gap-1.5 px-2.5 rounded-lg border-border"
+                :class="[isFullscreen ? 'bg-primary text-primary-foreground font-bold border-primary' : 'text-muted-foreground hover:text-foreground']"
+                :title="isFullscreen ? 'Keluar Mode Layar Penuh (Esc)' : 'Buka Layar Penuh untuk tampilan luas'"
+                @click="toggleFullscreen"
               >
-                <ChevronLeft class="w-4 h-4" />
-              </Button>
-
-              <!-- Input Nomor Halaman Langsung -->
-              <div class="flex items-center gap-1 px-2 py-0.5 bg-background border border-border rounded-lg shadow-2xs h-8">
-                <span class="text-[11px] text-muted-foreground font-medium">Hal.</span>
-                <Input
-                  type="number"
-                  min="1"
-                  :max="totalPages"
-                  v-model="pageInputNumber"
-                  @keydown.enter="jumpToInputPage"
-                  @blur="jumpToInputPage"
-                  class="w-12 h-6 text-center text-xs font-mono font-bold px-1 py-0 border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  title="Ketik nomor halaman dan tekan Enter untuk berpindah langsung"
-                />
-                <span class="text-xs font-mono text-muted-foreground">/ {{ totalPages }}</span>
-              </div>
-
-              <!-- Halaman Berikutnya -->
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 rounded-lg border-border"
-                :disabled="currentPage >= totalPages"
-                title="Halaman Berikutnya"
-                @click="goToPage(currentPage + 1)"
-              >
-                <ChevronRight class="w-4 h-4" />
-              </Button>
-
-              <!-- Halaman Terakhir -->
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 rounded-lg border-border"
-                :disabled="currentPage >= totalPages"
-                :title="`Halaman Terakhir (Hal. ${totalPages})`"
-                @click="goToPage(totalPages)"
-              >
-                <ChevronsRight class="w-4 h-4" />
+                <Minimize2 v-if="isFullscreen" class="w-3.5 h-3.5" />
+                <Maximize2 v-else class="w-3.5 h-3.5" />
+                <span>{{ isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh' }}</span>
               </Button>
             </div>
           </CardHeader>
 
-          <!-- Card Content / Canvas Viewer Area -->
-          <CardContent class="p-4 sm:p-6 bg-slate-950/70 flex items-center justify-center min-h-[580px] relative select-none overflow-x-auto">
+          <!-- Card Content / Canvas Viewer Area (Dengan Scroll & Zooming) -->
+          <CardContent
+            class="p-4 sm:p-6 bg-slate-950/75 flex items-start justify-center relative select-none overflow-auto flex-1 min-h-[580px]"
+            :class="[isFullscreen ? 'h-full' : '']"
+          >
             <!-- Empty State / Belum Unggah -->
-            <div v-if="!uploadSession" class="text-center py-20 px-4 space-y-3 max-w-md">
+            <div v-if="!uploadSession" class="text-center py-24 px-4 space-y-3 max-w-md my-auto">
               <div class="w-16 h-16 rounded-3xl bg-slate-800/80 text-slate-400 mx-auto flex items-center justify-center border border-slate-700/60 shadow-lg">
                 <FileText class="w-8 h-8" />
               </div>
@@ -324,13 +338,26 @@
               </p>
             </div>
 
-            <!-- Page Container Aktif -->
+            <!-- Page Container Aktif (Bisa Di-Zoom Bebas) -->
             <div
               v-else
               ref="pageContainerRef"
-              class="relative bg-white shadow-2xl rounded-sm border border-slate-700/60 transition-all mx-auto"
-              style="width: 100%; max-width: 580px;"
+              class="relative bg-white shadow-2xl rounded-sm border border-slate-700/60 transition-transform origin-top mx-auto"
+              :style="{
+                width: '100%',
+                maxWidth: '580px',
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'top center',
+                marginBottom: zoomLevel > 1.0 ? `${(zoomLevel - 1.0) * 820}px` : '0px'
+              }"
             >
+              <!-- Garis Kisi-Kisi Bantu (Jika Diaktifkan) -->
+              <div
+                v-if="showGrid"
+                class="absolute inset-0 pointer-events-none z-10 opacity-30"
+                style="background-image: linear-gradient(to right, #0284c7 1px, transparent 1px), linear-gradient(to bottom, #0284c7 1px, transparent 1px); background-size: 20px 20px;"
+              ></div>
+
               <!-- Gambar Halaman Dokumen yang Dirender PyMuPDF -->
               <img
                 :src="currentPagePreviewUrl"
@@ -338,13 +365,15 @@
                 class="w-full h-auto block select-none pointer-events-none rounded-sm"
               />
 
-              <!-- Draggable QR Stamp Overlay (HANYA QR SAJA, TANPA LABEL SAMPING, ASPECT RATIO 1:1) -->
+              <!-- =========================================================== -->
+              <!-- 1. STEMPEL QR UTAMA (DRAGGABLE & RESIZABLE)                 -->
+              <!-- =========================================================== -->
               <div
                 v-if="form.target_page === currentPage"
                 class="absolute cursor-move select-none touch-none transition-shadow z-20 group"
                 :style="stampStyle"
-                @mousedown="startDrag"
-                @touchstart="startDragTouch"
+                @mousedown="startDrag($event, 'primary')"
+                @touchstart="startDragTouch($event, 'primary')"
               >
                 <!-- Stempel QR Murni Berbingkai Putus-putus Cyan -->
                 <div
@@ -395,8 +424,8 @@
                 <div
                   class="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nwse-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
                   title="Seret untuk mengubah ukuran QR"
-                  @mousedown.stop="startResize($event, 'nw')"
-                  @touchstart.stop="startResizeTouch($event, 'nw')"
+                  @mousedown.stop="startResize($event, 'nw', 'primary')"
+                  @touchstart.stop="startResizeTouch($event, 'nw', 'primary')"
                 >
                   <div class="w-1 h-1 bg-primary rounded-full"></div>
                 </div>
@@ -405,8 +434,8 @@
                 <div
                   class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nesw-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
                   title="Seret untuk mengubah ukuran QR"
-                  @mousedown.stop="startResize($event, 'ne')"
-                  @touchstart.stop="startResizeTouch($event, 'ne')"
+                  @mousedown.stop="startResize($event, 'ne', 'primary')"
+                  @touchstart.stop="startResizeTouch($event, 'ne', 'primary')"
                 >
                   <div class="w-1 h-1 bg-primary rounded-full"></div>
                 </div>
@@ -415,8 +444,8 @@
                 <div
                   class="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-primary rounded-full cursor-nesw-resize shadow-md hover:scale-125 transition-transform z-30 flex items-center justify-center opacity-80 group-hover:opacity-100"
                   title="Seret untuk mengubah ukuran QR"
-                  @mousedown.stop="startResize($event, 'sw')"
-                  @touchstart.stop="startResizeTouch($event, 'sw')"
+                  @mousedown.stop="startResize($event, 'sw', 'primary')"
+                  @touchstart.stop="startResizeTouch($event, 'sw', 'primary')"
                 >
                   <div class="w-1 h-1 bg-primary rounded-full"></div>
                 </div>
@@ -425,23 +454,111 @@
                 <div
                   class="absolute -bottom-2 -right-2 w-5 h-5 bg-primary border-2 border-white rounded-full cursor-nwse-resize shadow-lg hover:scale-125 transition-transform z-30 flex items-center justify-center ring-2 ring-primary/30"
                   title="Tarik sudut ini untuk memperbesar atau memperkecil QR"
-                  @mousedown.stop="startResize($event, 'se')"
-                  @touchstart.stop="startResizeTouch($event, 'se')"
+                  @mousedown.stop="startResize($event, 'se', 'primary')"
+                  @touchstart.stop="startResizeTouch($event, 'se', 'primary')"
                 >
                   <Maximize2 class="w-2.5 h-2.5 text-white" />
                 </div>
 
                 <!-- Floating Coordinates & Dimension Tooltip Real-time -->
                 <div class="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-slate-900/95 text-cyan-300 text-[10px] font-mono rounded-md shadow-lg pointer-events-none whitespace-nowrap border border-slate-700/80 flex items-center gap-1.5 backdrop-blur-xs">
-                  <span class="font-bold text-white">{{ qrSizeLabel }}</span>
+                  <span class="font-bold text-white">QR #1 (Utama)</span>
+                  <span class="text-slate-400">|</span>
+                  <span>{{ qrSizeLabel }}</span>
                   <span class="text-slate-400">|</span>
                   <span>X: {{ stampXPercent.toFixed(1) }}%, Y: {{ stampYPercent.toFixed(1) }}%</span>
                 </div>
               </div>
 
-              <!-- Tombol Pindah Stempel ke Halaman Ini jika Stempel Ada di Halaman Lain -->
+              <!-- =========================================================== -->
+              <!-- 2. STEMPEL QR TAMBAHAN (JIKA ADA >1 TTD DALAM 1 DOKUMEN)    -->
+              <!-- =========================================================== -->
+              <template v-for="(exStamp, exIdx) in extraStamps" :key="exStamp.id">
+                <div
+                  v-if="exStamp.page === currentPage"
+                  class="absolute cursor-move select-none touch-none transition-shadow z-20 group"
+                  :style="{
+                    left: `${exStamp.x}%`,
+                    top: `${exStamp.y}%`,
+                    width: `${exStamp.widthPercent}%`,
+                    aspectRatio: '1 / 1'
+                  }"
+                  @mousedown="startDrag($event, 'extra', exIdx)"
+                  @touchstart="startDragTouch($event, 'extra', exIdx)"
+                >
+                  <!-- Stempel Tambahan dengan Aksen Amber/Emas -->
+                  <div
+                    class="w-full h-full border-2 border-dashed border-amber-400 bg-white/95 rounded-md p-1 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden group-hover:border-amber-300 transition-colors"
+                  >
+                    <!-- Pattern QR Code -->
+                    <div class="w-full h-full relative flex items-center justify-center bg-amber-50/40 rounded-xs border border-amber-200/80">
+                      <div class="absolute top-1 left-1 w-3.5 h-3.5 border-2 border-slate-900 flex items-center justify-center">
+                        <div class="w-1.5 h-1.5 bg-slate-900"></div>
+                      </div>
+                      <div class="absolute top-1 right-1 w-3.5 h-3.5 border-2 border-slate-900 flex items-center justify-center">
+                        <div class="w-1.5 h-1.5 bg-slate-900"></div>
+                      </div>
+                      <div class="absolute bottom-1 left-1 w-3.5 h-3.5 border-2 border-slate-900 flex items-center justify-center">
+                        <div class="w-1.5 h-1.5 bg-slate-900"></div>
+                      </div>
+
+                      <div class="w-3/5 h-3/5 grid grid-cols-4 grid-rows-4 gap-0.5 opacity-80">
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                        <div class="bg-transparent"></div>
+                        <div class="bg-slate-900 rounded-[0.5px]"></div>
+                      </div>
+
+                      <div class="absolute w-4 h-4 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-500 border border-white shadow-xs flex items-center justify-center text-[7px] text-white font-black">
+                        {{ exIdx + 2 }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tombol Hapus Stempel Tambahan Ini -->
+                  <div
+                    class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md z-30 transition-transform hover:scale-110"
+                    title="Hapus stempel QR tambahan ini"
+                    @mousedown.stop="removeExtraStamp(exIdx)"
+                    @touchstart.stop="removeExtraStamp(exIdx)"
+                  >
+                    <X class="w-3 h-3" />
+                  </div>
+
+                  <!-- Resize Handle Kanan-Bawah -->
+                  <div
+                    class="absolute -bottom-2 -right-2 w-5 h-5 bg-amber-500 border-2 border-white rounded-full cursor-nwse-resize shadow-lg hover:scale-125 transition-transform z-30 flex items-center justify-center ring-2 ring-amber-500/30"
+                    title="Tarik untuk mengubah ukuran QR tambahan ini"
+                    @mousedown.stop="startResize($event, 'se', 'extra', exIdx)"
+                    @touchstart.stop="startResizeTouch($event, 'se', 'extra', exIdx)"
+                  >
+                    <Maximize2 class="w-2.5 h-2.5 text-white" />
+                  </div>
+
+                  <!-- Floating Tooltip -->
+                  <div class="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900/95 text-amber-300 text-[10px] font-mono rounded-md shadow-lg pointer-events-none whitespace-nowrap border border-slate-700/80 flex items-center gap-1 backdrop-blur-xs">
+                    <span class="font-bold text-white">QR #{{ exIdx + 2 }}</span>
+                    <span>|</span>
+                    <span>X: {{ exStamp.x.toFixed(1) }}%, Y: {{ exStamp.y.toFixed(1) }}%</span>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Tombol Pindah Stempel Utama ke Halaman Ini jika Stempel Ada di Halaman Lain -->
               <div
-                v-else
+                v-if="form.target_page !== currentPage"
                 class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20"
               >
                 <Button
@@ -456,6 +573,129 @@
               </div>
             </div>
           </CardContent>
+
+          <!-- =============================================================== -->
+          <!-- CARD FOOTER: TOOLBAR LENGKAP (PAGINASI, ZOOM, & TAMBAH QR)     -->
+          <!-- =============================================================== -->
+          <CardFooter class="p-3 sm:p-4 border-t border-border flex flex-wrap items-center justify-between gap-3 bg-muted/20 shrink-0">
+            <!-- Sisi Kiri: Pagination Controls (Pindah ke Bawah Sesuai Permintaan) -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-semibold text-muted-foreground mr-1 hidden sm:inline">Halaman:</span>
+
+              <!-- Halaman Pertama -->
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 rounded-lg border-border"
+                :disabled="!uploadSession || currentPage <= 1"
+                title="Halaman Pertama (Hal. 1)"
+                @click="goToPage(1)"
+              >
+                <ChevronsLeft class="w-4 h-4" />
+              </Button>
+
+              <!-- Halaman Sebelumnya -->
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 rounded-lg border-border"
+                :disabled="!uploadSession || currentPage <= 1"
+                title="Halaman Sebelumnya"
+                @click="goToPage(currentPage - 1)"
+              >
+                <ChevronLeft class="w-4 h-4" />
+              </Button>
+
+              <!-- Input Nomor Halaman Langsung -->
+              <div class="flex items-center gap-1 px-2 py-0.5 bg-background border border-border rounded-lg shadow-2xs h-8">
+                <Input
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  v-model="pageInputNumber"
+                  :disabled="!uploadSession"
+                  @keydown.enter="jumpToInputPage"
+                  @blur="jumpToInputPage"
+                  class="w-10 h-6 text-center text-xs font-mono font-bold px-1 py-0 border-border bg-muted/30 focus-visible:ring-1 focus-visible:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  title="Ketik nomor halaman dan tekan Enter untuk berpindah"
+                />
+                <span class="text-xs font-mono text-muted-foreground">/ {{ totalPages }}</span>
+              </div>
+
+              <!-- Halaman Berikutnya -->
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 rounded-lg border-border"
+                :disabled="!uploadSession || currentPage >= totalPages"
+                title="Halaman Berikutnya"
+                @click="goToPage(currentPage + 1)"
+              >
+                <ChevronRight class="w-4 h-4" />
+              </Button>
+
+              <!-- Halaman Terakhir -->
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 rounded-lg border-border"
+                :disabled="!uploadSession || currentPage >= totalPages"
+                :title="`Halaman Terakhir (Hal. ${totalPages})`"
+                @click="goToPage(totalPages)"
+              >
+                <ChevronsRight class="w-4 h-4" />
+              </Button>
+            </div>
+
+            <!-- Sisi Tengah: Zoom In & Zoom Out Controls -->
+            <div class="flex items-center gap-1 bg-background border border-border rounded-lg p-0.5 shadow-2xs">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground"
+                :disabled="!uploadSession || zoomLevel <= 0.6"
+                title="Perkecil Dokumen (Zoom Out)"
+                @click="zoomOut"
+              >
+                <ZoomOut class="w-3.5 h-3.5" />
+              </Button>
+
+              <button
+                type="button"
+                class="px-2 text-xs font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer select-none"
+                title="Klik untuk reset zoom ke 100%"
+                @click="resetZoom"
+              >
+                {{ Math.round(zoomLevel * 100) }}%
+              </button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground"
+                :disabled="!uploadSession || zoomLevel >= 2.0"
+                title="Perbesar Dokumen (Zoom In)"
+                @click="zoomIn"
+              >
+                <ZoomIn class="w-3.5 h-3.5" />
+              </Button>
+            </div>
+
+            <!-- Sisi Kanan: Tools Tambah Stempel QR TTE -->
+            <div class="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-8 text-xs font-medium gap-1.5 rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                :disabled="!uploadSession"
+                title="Tambahkan stempel QR kedua/ketiga pada dokumen ini"
+                @click="addExtraStamp"
+              >
+                <Plus class="w-3.5 h-3.5" />
+                <span>Tambah QR Stempel</span>
+              </Button>
+            </div>
+          </CardFooter>
         </Card>
       </div>
     </div>
@@ -516,14 +756,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { uploadTteApi } from '@/services/api'
 import AppInput from '@/components/AppInput.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   UploadCloud,
@@ -539,7 +779,13 @@ import {
   ChevronsRight,
   RotateCcw,
   CheckCircle2,
-  Maximize2
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  Grid,
+  Plus,
+  X
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['document-signed', 'navigate-to'])
@@ -581,6 +827,12 @@ const pageInputNumber = ref(1)
 const isSuccessDialogOpen = ref(false)
 const signedResult = ref(null)
 
+// Viewer Features State (Zoom, Fullscreen, Grid, Multiple QR)
+const zoomLevel = ref(1.0)
+const isFullscreen = ref(false)
+const showGrid = ref(false)
+const extraStamps = ref([])
+
 // =========================================================================
 // PENGATUR UKURAN QR CODE (1:1 Aspect Ratio)
 // =========================================================================
@@ -605,6 +857,20 @@ const resetStampToDefault = () => {
   qrWidthPercent.value = 12.5
 }
 
+// Preset Cepat Penempatan Stempel
+const applyPositionPreset = (preset) => {
+  if (preset === 'right-bottom') {
+    stampXPercent.value = 70.0
+    stampYPercent.value = 80.0
+  } else if (preset === 'left-bottom') {
+    stampXPercent.value = 12.0
+    stampYPercent.value = 80.0
+  } else if (preset === 'center-bottom') {
+    stampXPercent.value = 42.0
+    stampYPercent.value = 80.0
+  }
+}
+
 // Draggable Coordinate State (Persentase 0 - 100%)
 const stampXPercent = ref(70.0)
 const stampYPercent = ref(80.0)
@@ -624,6 +890,55 @@ const currentPagePreviewUrl = computed(() => {
   if (!uploadSession.value) return ''
   return uploadTteApi.getPagePreviewUrl(uploadSession.value.upload_id, currentPage.value)
 })
+
+// =========================================================================
+// ZOOM & FULLSCREEN CONTROLS
+// =========================================================================
+const zoomIn = () => {
+  if (zoomLevel.value < 2.0) {
+    zoomLevel.value = +(zoomLevel.value + 0.15).toFixed(2)
+  }
+}
+
+const zoomOut = () => {
+  if (zoomLevel.value > 0.6) {
+    zoomLevel.value = +(zoomLevel.value - 0.15).toFixed(2)
+  }
+}
+
+const resetZoom = () => {
+  zoomLevel.value = 1.0
+}
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+}
+
+const handleKeydown = (e) => {
+  if (e.key === 'Escape' && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+}
+
+// =========================================================================
+// MULTIPLE QR STAMPS MANAGEMENT
+// =========================================================================
+const addExtraStamp = () => {
+  if (!uploadSession.value) return
+  const newX = stampXPercent.value > 45 ? 15.0 : 70.0
+  const newY = stampYPercent.value
+  extraStamps.value.push({
+    id: Date.now() + Math.random(),
+    page: currentPage.value,
+    x: newX,
+    y: newY,
+    widthPercent: qrWidthPercent.value
+  })
+}
+
+const removeExtraStamp = (index) => {
+  extraStamps.value.splice(index, 1)
+}
 
 // Trigger File Picker
 const triggerFileInput = () => {
@@ -651,6 +966,7 @@ const onFileDrop = (e) => {
 const handleFileUpload = async (file) => {
   isEditMode.value = false
   isConverting.value = true
+  extraStamps.value = []
   const formData = new FormData()
   formData.append('file', file)
 
@@ -688,81 +1004,94 @@ const jumpToInputPage = () => {
 }
 
 // =========================================================================
-// LOGIKA DRAGGABLE STEMPEL (POINTER / MOUSE / TOUCH)
+// LOGIKA DRAGGABLE STEMPEL (POINTER / MOUSE / TOUCH - MENDUKUNG EXTRA STAMP)
 // =========================================================================
 let isDragging = false
+let activeDragTarget = 'primary' // 'primary' atau 'extra'
+let activeDragIndex = 0
 let startX = 0
 let startY = 0
 let initialStampX = 0
 let initialStampY = 0
 
-const startDrag = (e) => {
+const startDrag = (e, target = 'primary', index = 0) => {
   if (!pageContainerRef.value) return
   isDragging = true
+  activeDragTarget = target
+  activeDragIndex = index
   startX = e.clientX
   startY = e.clientY
-  initialStampX = stampXPercent.value
-  initialStampY = stampYPercent.value
+
+  if (target === 'primary') {
+    initialStampX = stampXPercent.value
+    initialStampY = stampYPercent.value
+  } else {
+    initialStampX = extraStamps.value[index].x
+    initialStampY = extraStamps.value[index].y
+  }
 
   window.addEventListener('mousemove', onDragging)
   window.addEventListener('mouseup', stopDrag)
 }
 
-const startDragTouch = (e) => {
+const startDragTouch = (e, target = 'primary', index = 0) => {
   if (!pageContainerRef.value || !e.touches[0]) return
   isDragging = true
+  activeDragTarget = target
+  activeDragIndex = index
   startX = e.touches[0].clientX
   startY = e.touches[0].clientY
-  initialStampX = stampXPercent.value
-  initialStampY = stampYPercent.value
+
+  if (target === 'primary') {
+    initialStampX = stampXPercent.value
+    initialStampY = stampYPercent.value
+  } else {
+    initialStampX = extraStamps.value[index].x
+    initialStampY = extraStamps.value[index].y
+  }
 
   window.addEventListener('touchmove', onDraggingTouch, { passive: false })
   window.addEventListener('touchend', stopDragTouch)
 }
 
-const onDragging = (e) => {
+const handleDragMath = (clientX, clientY) => {
   if (!isDragging || !pageContainerRef.value) return
   const rect = pageContainerRef.value.getBoundingClientRect()
-  const deltaXPixels = e.clientX - startX
-  const deltaYPixels = e.clientY - startY
+  const deltaXPixels = clientX - startX
+  const deltaYPixels = clientY - startY
 
   const deltaXPercent = (deltaXPixels / rect.width) * 100
   const deltaYPercent = (deltaYPixels / rect.height) * 100
 
   const containerRatio = rect.width / (rect.height || 1)
-  const stampHeightPercent = qrWidthPercent.value * containerRatio
+  const currentWidthPercent = activeDragTarget === 'primary' 
+    ? qrWidthPercent.value 
+    : extraStamps.value[activeDragIndex]?.widthPercent || qrWidthPercent.value
+  const stampHeightPercent = currentWidthPercent * containerRatio
 
   let newX = initialStampX + deltaXPercent
   let newY = initialStampY + deltaYPercent
 
-  newX = Math.max(0.5, Math.min(newX, 99.5 - qrWidthPercent.value))
+  newX = Math.max(0.5, Math.min(newX, 99.5 - currentWidthPercent))
   newY = Math.max(0.5, Math.min(newY, 99.5 - stampHeightPercent))
 
-  stampXPercent.value = newX
-  stampYPercent.value = newY
+  if (activeDragTarget === 'primary') {
+    stampXPercent.value = newX
+    stampYPercent.value = newY
+  } else if (extraStamps.value[activeDragIndex]) {
+    extraStamps.value[activeDragIndex].x = newX
+    extraStamps.value[activeDragIndex].y = newY
+  }
+}
+
+const onDragging = (e) => {
+  handleDragMath(e.clientX, e.clientY)
 }
 
 const onDraggingTouch = (e) => {
-  if (!isDragging || !pageContainerRef.value || !e.touches[0]) return
+  if (!e.touches[0]) return
   e.preventDefault()
-  const rect = pageContainerRef.value.getBoundingClientRect()
-  const deltaXPixels = e.touches[0].clientX - startX
-  const deltaYPixels = e.touches[0].clientY - startY
-
-  const deltaXPercent = (deltaXPixels / rect.width) * 100
-  const deltaYPercent = (deltaYPixels / rect.height) * 100
-
-  const containerRatio = rect.width / (rect.height || 1)
-  const stampHeightPercent = qrWidthPercent.value * containerRatio
-
-  let newX = initialStampX + deltaXPercent
-  let newY = initialStampY + deltaYPercent
-
-  newX = Math.max(0.5, Math.min(newX, 99.5 - qrWidthPercent.value))
-  newY = Math.max(0.5, Math.min(newY, 99.5 - stampHeightPercent))
-
-  stampXPercent.value = newX
-  stampYPercent.value = newY
+  handleDragMath(e.touches[0].clientX, e.touches[0].clientY)
 }
 
 const stopDrag = () => {
@@ -781,6 +1110,8 @@ const stopDragTouch = () => {
 // LOGIKA RESIZE SUDUT STEMPEL (1:1 ASPECT RATIO, 4 SUDUT INTERAKTIF)
 // =========================================================================
 let isResizing = false
+let activeResizeTarget = 'primary'
+let activeResizeIndex = 0
 let resizeCorner = 'se'
 let resizeStartX = 0
 let resizeStartY = 0
@@ -788,29 +1119,49 @@ let initialResizeWidth = 0
 let initialResizeX = 0
 let initialResizeY = 0
 
-const startResize = (e, corner = 'se') => {
+const startResize = (e, corner = 'se', target = 'primary', index = 0) => {
   if (!pageContainerRef.value) return
   isResizing = true
+  activeResizeTarget = target
+  activeResizeIndex = index
   resizeCorner = corner
   resizeStartX = e.clientX
   resizeStartY = e.clientY
-  initialResizeWidth = qrWidthPercent.value
-  initialResizeX = stampXPercent.value
-  initialResizeY = stampYPercent.value
+
+  if (target === 'primary') {
+    initialResizeWidth = qrWidthPercent.value
+    initialResizeX = stampXPercent.value
+    initialResizeY = stampYPercent.value
+  } else {
+    const s = extraStamps.value[index]
+    initialResizeWidth = s.widthPercent
+    initialResizeX = s.x
+    initialResizeY = s.y
+  }
 
   window.addEventListener('mousemove', onResizing)
   window.addEventListener('mouseup', stopResize)
 }
 
-const startResizeTouch = (e, corner = 'se') => {
+const startResizeTouch = (e, corner = 'se', target = 'primary', index = 0) => {
   if (!pageContainerRef.value || !e.touches[0]) return
   isResizing = true
+  activeResizeTarget = target
+  activeResizeIndex = index
   resizeCorner = corner
   resizeStartX = e.touches[0].clientX
   resizeStartY = e.touches[0].clientY
-  initialResizeWidth = qrWidthPercent.value
-  initialResizeX = stampXPercent.value
-  initialResizeY = stampYPercent.value
+
+  if (target === 'primary') {
+    initialResizeWidth = qrWidthPercent.value
+    initialResizeX = stampXPercent.value
+    initialResizeY = stampYPercent.value
+  } else {
+    const s = extraStamps.value[index]
+    initialResizeWidth = s.widthPercent
+    initialResizeX = s.x
+    initialResizeY = s.y
+  }
 
   window.addEventListener('touchmove', onResizingTouch, { passive: false })
   window.addEventListener('touchend', stopResizeTouch)
@@ -827,7 +1178,6 @@ const handleResizeMath = (clientX, clientY) => {
   const MAX_WIDTH = 35.0 // ~7.4 cm
 
   if (resizeCorner === 'se') {
-    // Kanan-Bawah: memperbesar ke kanan dan bawah
     let targetWidth = initialResizeWidth + deltaXPercent
     targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
     targetWidth = Math.min(targetWidth, 99.5 - initialResizeX)
@@ -836,9 +1186,13 @@ const handleResizeMath = (clientX, clientY) => {
     if (initialResizeY + targetHeightPercent > 99.5) {
       targetWidth = (99.5 - initialResizeY) / containerRatio
     }
-    qrWidthPercent.value = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+    const finalWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
+    if (activeResizeTarget === 'primary') {
+      qrWidthPercent.value = finalWidth
+    } else if (extraStamps.value[activeResizeIndex]) {
+      extraStamps.value[activeResizeIndex].widthPercent = finalWidth
+    }
   } else if (resizeCorner === 'nw') {
-    // Kiri-Atas: memperbesar ke kiri dan atas (anchor di pojok kanan-bawah)
     let targetWidth = initialResizeWidth - deltaXPercent
     targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
 
@@ -847,34 +1201,15 @@ const handleResizeMath = (clientX, clientY) => {
     let newY = initialResizeY - (widthDiff * containerRatio)
 
     if (newX >= 0.5 && newY >= 0.5) {
-      qrWidthPercent.value = targetWidth
-      stampXPercent.value = newX
-      stampYPercent.value = newY
-    }
-  } else if (resizeCorner === 'ne') {
-    // Kanan-Atas: memperbesar ke kanan dan atas (anchor di pojok kiri-bawah)
-    let targetWidth = initialResizeWidth + deltaXPercent
-    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
-
-    const widthDiff = targetWidth - initialResizeWidth
-    let newY = initialResizeY - (widthDiff * containerRatio)
-
-    if (initialResizeX + targetWidth <= 99.5 && newY >= 0.5) {
-      qrWidthPercent.value = targetWidth
-      stampYPercent.value = newY
-    }
-  } else if (resizeCorner === 'sw') {
-    // Kiri-Bawah: memperbesar ke kiri dan bawah (anchor di pojok kanan-atas)
-    let targetWidth = initialResizeWidth - deltaXPercent
-    targetWidth = Math.max(MIN_WIDTH, Math.min(targetWidth, MAX_WIDTH))
-
-    const widthDiff = targetWidth - initialResizeWidth
-    let newX = initialResizeX - widthDiff
-    const targetHeightPercent = targetWidth * containerRatio
-
-    if (newX >= 0.5 && initialResizeY + targetHeightPercent <= 99.5) {
-      qrWidthPercent.value = targetWidth
-      stampXPercent.value = newX
+      if (activeResizeTarget === 'primary') {
+        qrWidthPercent.value = targetWidth
+        stampXPercent.value = newX
+        stampYPercent.value = newY
+      } else if (extraStamps.value[activeResizeIndex]) {
+        extraStamps.value[activeResizeIndex].widthPercent = targetWidth
+        extraStamps.value[activeResizeIndex].x = newX
+        extraStamps.value[activeResizeIndex].y = newY
+      }
     }
   }
 }
@@ -901,7 +1236,12 @@ const stopResizeTouch = () => {
   window.removeEventListener('touchend', stopResizeTouch)
 }
 
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
   stopDrag()
   stopDragTouch()
   stopResize()
@@ -909,7 +1249,7 @@ onUnmounted(() => {
 })
 
 // =========================================================================
-// SUBMIT PROSES TTE BSrE
+// SUBMIT PROSES TTE BSrE (TETAP MENJAGA ALUR ASLI YANG SUDAH PAS)
 // =========================================================================
 const submitProcessSign = async () => {
   formErrors.passphrase = ''
@@ -932,6 +1272,11 @@ const submitProcessSign = async () => {
   formData.append('y_percent', stampYPercent.value.toFixed(2))
   formData.append('width_percent', qrWidthPercent.value.toFixed(2))
   formData.append('height_percent', qrWidthPercent.value.toFixed(2))
+
+  // Sertakan stempel tambahan jika ada
+  if (extraStamps.value.length > 0) {
+    formData.append('additional_stamps', JSON.stringify(extraStamps.value))
+  }
 
   try {
     const res = await uploadTteApi.processSign(formData)
@@ -960,6 +1305,7 @@ const loadExistingDocument = async (doc) => {
   if (!doc) return
   isEditMode.value = true
   isConverting.value = true
+  extraStamps.value = []
   form.perihal = doc.title || doc.filename || ''
   form.nomor_surat = doc.document_number || doc.nomor_surat || ''
   if (doc.category || doc.document_type) {

@@ -257,6 +257,13 @@ class BsreTteService:
                 # HANYA 1 QR Code resmi dengan logo di tengahnya (tanpa kotak border, tanpa teks/label samping)
                 c.drawImage(img_reader, x_point, y_point, width=dim, height=dim, mask='auto')
 
+            # 3. Gambar stempel tambahan jika user menaruh lebih dari 1 stempel QR di dokumen
+            if metadata_payload and "additional_stamps" in metadata_payload:
+                for extra in metadata_payload.get("additional_stamps", []):
+                    if extra.get("page") == i + 1:
+                        e_dim = min(float(extra.get("w", 70)), float(extra.get("h", 70)))
+                        c.drawImage(img_reader, float(extra.get("x", 100)), float(extra.get("y", 100)), width=e_dim, height=e_dim, mask='auto')
+
             c.save()
             pkt.seek(0)
             overlay_pdf = PdfReader(pkt)
