@@ -2,6 +2,11 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api/v1",
+  headers: {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  },
 });
 
 api.interceptors.request.use((config) => {
@@ -9,6 +14,9 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  config.headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+  config.headers["Pragma"] = "no-cache";
+  config.headers["Expires"] = "0";
   return config;
 });
 

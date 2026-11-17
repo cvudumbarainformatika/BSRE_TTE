@@ -369,8 +369,14 @@ class BsreTteService:
                             "location": "Kota Probolinggo"
                         }
                     sign_timeout = max(120.0, float(self.timeout or 120.0))
+                    # Rekomendasi Kominfo: Tambahkan header no-cache dan Connection: close
+                    # agar gateway Nginx/proxy Kominfo tidak menahan cache buffer atau stale socket reuse
                     headers = {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RSUD-Moh-Saleh-EsignClient/1.0"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RSUD-Moh-Saleh-EsignClient/1.0",
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0",
+                        "Connection": "close"
                     }
 
                     with open(input_pdf_path, "rb") as f_pdf:
