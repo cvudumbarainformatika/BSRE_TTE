@@ -24,6 +24,18 @@
             variant="outline"
             size="sm"
             class="h-9 text-xs rounded-xl gap-1.5 border-border hover:bg-muted/60"
+            :disabled="isLoading || isExporting"
+            @click="exportAuditTrailCsv"
+          >
+            <div v-if="isExporting" class="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <FileSpreadsheet v-else class="w-3.5 h-3.5 text-emerald-500" />
+            <span>Ekspor Laporan (Excel)</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-9 text-xs rounded-xl gap-1.5 border-border hover:bg-muted/60"
             :disabled="isLoading"
             @click="loadAuditTrail"
           >
@@ -231,6 +243,10 @@
                   <div class="text-[10px] text-muted-foreground truncate" :title="log.details.catatan || 'TTE BSrE Terverifikasi'">
                     {{ log.details.catatan || 'TTE BSrE Terverifikasi' }}
                   </div>
+                </div>
+
+                <div v-else-if="log.details?.keterangan" class="text-xs font-semibold text-primary">
+                  {{ log.details.keterangan }}
                 </div>
 
                 <div v-else class="text-xs text-muted-foreground">
@@ -456,11 +472,13 @@ import {
   ScrollText,
   User,
   FileText,
-  Eye
+  Eye,
+  FileSpreadsheet
 } from 'lucide-vue-next'
 
 const logs = ref([])
 const isLoading = ref(false)
+const isExporting = ref(false)
 const activeStatusFilter = ref('ALL')
 const searchQuery = ref('')
 const showDetailModal = ref(false)
@@ -494,6 +512,33 @@ const loadAuditTrail = async () => {
     console.error('Gagal mengambil audit trail:', err)
   } finally {
     isLoading.value = false
+  }
+}
+
+const exportAuditTrailCsv = async () => {
+  if (isExporting.value) return
+  isExporting.value = true
+  try {
+    const res = await auditApi.exportCsv({
+      limit: 2000,
+      search: searchQuery.value.trim() || undefined,
+      status: activeStatusFilter.value
+    })
+    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const dateStr = new Date().toISOString().slice(0, 10)
+    link.setAttribute('download', `Laporan_Audit_Trail_RSUD_${dateStr}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('Gagal mengekspor laporan audit trail:', err)
+    alert('Gagal mengekspor laporan audit trail.')
+  } finally {
+    isExporting.value = false
   }
 }
 

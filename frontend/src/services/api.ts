@@ -91,6 +91,9 @@ export const documentApi = {
 
   // Audit Trail
   getAuditTrail: (id: number | string) => api.get(`/audit/document/${id}`),
+
+  // Log Print Pencatatan Cetak Dokumen
+  logPrint: (id: number | string) => api.post(`/document/${id}/log-print`),
 };
 
 export const auditApi = {
@@ -98,6 +101,8 @@ export const auditApi = {
   getDocumentAudit: (documentId: number | string) => api.get(`/audit/document/${documentId}`),
   getFullAuditTrail: (params?: { limit?: number; search?: string; status?: string }) =>
     api.get("/audit/trail", { params }),
+  exportCsv: (params?: { limit?: number; search?: string; status?: string }) =>
+    api.get("/audit/export", { params, responseType: "blob" }),
 };
 
 export const notificationApi = {

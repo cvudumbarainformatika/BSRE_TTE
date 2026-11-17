@@ -12,6 +12,7 @@ from config.database import get_session
 from config.settings import settings
 from app.Models.User import User, UserRole
 from app.Models.Document import Document
+from app.Models.DocumentAuditLog import DocumentAuditLog
 from app.Repositories.DocumentRepository import DocumentRepository
 from app.Services.VirusScanService import virus_scanner
 from app.Services.PdfGeneratorService import pdf_service
@@ -322,7 +323,7 @@ def get_document(
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Detail dokumen beserta metadata"""
+    """Detail dokumen beserta metadata, jumlah unduhan dan jumlah cetakan"""
     repo = DocumentRepository(db)
     doc = repo.get_by_id(document_id)
     if not doc:
@@ -335,9 +336,21 @@ def get_document(
         except Exception:
             pass
 
+    download_count = db.exec(
+        select(func.count(DocumentAuditLog.id))
+        .where(DocumentAuditLog.document_id == doc.id, DocumentAuditLog.action == "DOWNLOAD")
+    ).one() or 0
+
+    print_count = db.exec(
+        select(func.count(DocumentAuditLog.id))
+        .where(DocumentAuditLog.document_id == doc.id, DocumentAuditLog.action == "PRINT")
+    ).one() or 0
+
     return {
         "document": doc,
-        "metadata": metadata
+        "metadata": metadata,
+        "download_count": download_count,
+        "print_count": print_count
     }
 
 @router.get("/{document_id}/view")
@@ -417,13 +430,20 @@ def download_document(
     db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Download dokumen PDF resmi"""
+    """Download dokumen PDF resmi dan mencatat nomor urut unduhan ke audit log"""
     repo = DocumentRepository(db)
     doc = repo.get_by_id(document_id)
     if not doc or not os.path.exists(doc.storage_path):
         raise HTTPException(status_code=404, detail="File PDF tidak ditemukan")
 
-    # Catat audit log download
+    # Hitung urutan unduhan ke-berapa
+    prev_downloads = db.exec(
+        select(func.count(DocumentAuditLog.id))
+        .where(DocumentAuditLog.document_id == doc.id, DocumentAuditLog.action == "DOWNLOAD")
+    ).one() or 0
+    current_iteration = prev_downloads + 1
+
+    # Catat audit log download dengan informasi urutan
     role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
     audit_service.log(
         db=db,
@@ -434,7 +454,11 @@ def download_document(
         action="DOWNLOAD",
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
-        details={"filename": doc.filename}
+        details={
+            "filename": doc.filename,
+            "iteration": current_iteration,
+            "keterangan": f"Unduhan ke-{current_iteration}"
+        }
     )
 
     return FileResponse(
@@ -442,6 +466,48 @@ def download_document(
         media_type="application/pdf",
         filename=doc.filename
     )
+
+@router.post("/{document_id}/log-print")
+def log_document_print(
+    document_id: int,
+    request: Request,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Mencatat aktivitas cetak (print) dokumen ke audit log beserta nomor urut cetakan"""
+    repo = DocumentRepository(db)
+    doc = repo.get_by_id(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan")
+
+    # Hitung urutan cetakan ke-berapa
+    prev_prints = db.exec(
+        select(func.count(DocumentAuditLog.id))
+        .where(DocumentAuditLog.document_id == doc.id, DocumentAuditLog.action == "PRINT")
+    ).one() or 0
+    current_print_iteration = prev_prints + 1
+
+    role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    audit_service.log(
+        db=db,
+        document_id=doc.id,
+        user_id=current_user.id,
+        username=current_user.username,
+        user_role=role_val,
+        action="PRINT",
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        details={
+            "filename": doc.filename,
+            "iteration": current_print_iteration,
+            "keterangan": f"Cetakan ke-{current_print_iteration}"
+        }
+    )
+    return {
+        "status": "success",
+        "print_iteration": current_print_iteration,
+        "message": f"Aktivitas cetakan ke-{current_print_iteration} berhasil dicatat"
+    }
 
 @router.post("/{document_id}/approve")
 def approve_document(

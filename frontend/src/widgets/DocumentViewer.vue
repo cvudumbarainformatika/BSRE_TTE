@@ -19,6 +19,16 @@
             <Badge v-else variant="outline" class="text-amber-500 border-amber-500/30 text-[10px] shrink-0">
               Menunggu TTE
             </Badge>
+
+            <!-- Counter Unduh & Cetak Riil -->
+            <span class="inline-flex items-center gap-1.5 ml-1">
+              <Badge variant="outline" class="text-[10px] gap-1 px-1.5 py-0 border-blue-500/30 text-blue-500 bg-blue-500/5 font-mono" title="Total kali dokumen ini telah diunduh">
+                <Download class="w-2.5 h-2.5" /> {{ downloadCount }}x Unduh
+              </Badge>
+              <Badge variant="outline" class="text-[10px] gap-1 px-1.5 py-0 border-purple-500/30 text-purple-500 bg-purple-500/5 font-mono" title="Total kali dokumen ini telah dicetak">
+                <Printer class="w-2.5 h-2.5" /> {{ printCount }}x Cetak
+              </Badge>
+            </span>
           </div>
         </div>
       </div>
@@ -131,8 +141,17 @@
         <div v-else class="relative border-l-2 border-border ml-3 space-y-6 text-xs">
           <div v-for="log in auditLogs" :key="log.id" class="ml-4 relative">
             <span class="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-primary border-2 border-background shadow-sm"></span>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="font-bold text-foreground">{{ log.action }}</span>
+              <Badge v-if="log.action === 'DOWNLOAD'" variant="outline" class="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/30 font-semibold">
+                {{ getLogIterationText(log, 'Unduhan') }}
+              </Badge>
+              <Badge v-else-if="log.action === 'PRINT'" variant="outline" class="text-[10px] bg-purple-500/10 text-purple-500 border-purple-500/30 font-semibold">
+                {{ getLogIterationText(log, 'Cetakan') }}
+              </Badge>
+              <Badge v-else-if="log.action === 'SIGN_TTE_BSRE'" variant="outline" class="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-semibold">
+                ✓ Sah BSrE
+              </Badge>
               <Badge variant="secondary" class="text-[10px]">{{ log.user_role }}</Badge>
               <span class="text-muted-foreground text-[11px]">{{ formatTimestamp(log.created_at) }}</span>
             </div>
@@ -179,6 +198,31 @@ const pdfFrame = ref(null)
 const auditLogs = ref([])
 const loadingAudit = ref(false)
 const selectedVersion = ref(null)
+const downloadCount = ref(0)
+const printCount = ref(0)
+
+const fetchDocStats = async () => {
+  if (!props.document?.id) return
+  try {
+    const res = await documentApi.getById(props.document.id)
+    if (res.data) {
+      downloadCount.value = res.data.download_count ?? 0
+      printCount.value = res.data.print_count ?? 0
+    }
+  } catch (e) {
+    console.error('Gagal mengambil statistik dokumen:', e)
+  }
+}
+
+watch(
+  () => props.document?.id,
+  (newId) => {
+    if (newId) {
+      fetchDocStats()
+    }
+  },
+  { immediate: true }
+)
 
 const parsedMeta = computed(() => {
   if (!props.document?.metadata_json) return {}
@@ -249,17 +293,32 @@ const downloadDocument = async () => {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
+    downloadCount.value++
   } catch (err) {
     console.error('Gagal mengunduh dokumen secara langsung, mencoba fallback URL:', err)
     if (downloadUrl.value && downloadUrl.value !== '#') {
       window.open(downloadUrl.value, '_blank')
+      downloadCount.value++
     }
   } finally {
     isDownloading.value = false
   }
 }
 
-const printDocument = () => {
+const printDocument = async () => {
+  if (props.document?.id) {
+    try {
+      await documentApi.logPrint(props.document.id)
+      printCount.value++
+      // Jika tab audit sedang dibuka, refresh audit trail
+      if (activeTab.value === 'audit') {
+        loadAuditTrail()
+      }
+    } catch (err) {
+      console.warn('Gagal mencatat log cetak:', err)
+    }
+  }
+
   if (pdfFrame.value && pdfFrame.value.contentWindow) {
     try {
       pdfFrame.value.contentWindow.print()
@@ -269,6 +328,20 @@ const printDocument = () => {
   } else {
     window.open(viewUrl.value, '_blank')
   }
+}
+
+const getLogIterationText = (log, prefix) => {
+  if (!log || !log.details) return prefix
+  try {
+    const d = typeof log.details === 'string' ? JSON.parse(log.details) : log.details
+    if (d.keterangan) return d.keterangan
+    if (d.iteration) return `${prefix} ke-${d.iteration}`
+    if (d.download_iteration) return `Unduhan ke-${d.download_iteration}`
+    if (d.print_iteration) return `Cetakan ke-${d.print_iteration}`
+  } catch (e) {
+    // Abaikan jika bukan JSON
+  }
+  return prefix
 }
 
 const loadAuditTrail = async () => {
